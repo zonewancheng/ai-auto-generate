@@ -1,0 +1,5 @@
+{
+  "name": "RPG Maker Character Generator",
+  "description": "An AI-powered web app to automatically generate pixel art character sprite sheets for RPG Maker. Describe your character, and the AI will create a ready-to-use sprite sheet in the correct format.",
+  "requestFramePermissions": []
+}
