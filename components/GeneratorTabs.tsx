@@ -9,20 +9,24 @@ import ItemGenerator from './ItemGenerator';
 import EquipmentGenerator from './EquipmentGenerator';
 import PetGenerator from './PetGenerator';
 import GameAssembler from './GameAssembler';
+import GameCGGenerator from './GameCGGenerator';
+import GameAudioGenerator from './GameAudioGenerator';
 
 // 使用更具 JRPG 风格的图标
 const CharacterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👤</span>;
 const MapIcon = () => <span className="w-6 h-6 mr-3 text-lg">🗺️</span>;
 const EffectIcon = () => <span className="w-6 h-6 mr-3 text-lg">✨</span>;
-const ChestIcon = () => <span className="w-6 h-6 mr-3 text-lg">📦</span>; // 宝箱图标
-const MonsterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👹</span>; // 怪物图标
+const ChestIcon = () => <span className="w-6 h-6 mr-3 text-lg">📦</span>;
+const MonsterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👹</span>;
 const ItemIcon = () => <span className="w-6 h-6 mr-3 text-lg">💎</span>;
 const EquipmentIcon = () => <span className="w-6 h-6 mr-3 text-lg">⚔️</span>;
 const PetIcon = () => <span className="w-6 h-6 mr-3 text-lg">🐾</span>;
-const GameIcon = () => <span className="w-6 h-6 mr-3 text-lg">📜</span>; // 游戏策划图标
+const GameIcon = () => <span className="w-6 h-6 mr-3 text-lg">📜</span>;
+const ConceptArtIcon = () => <span className="w-6 h-6 mr-3 text-lg">🎨</span>;
+const AudioIcon = () => <span className="w-6 h-6 mr-3 text-lg">🎵</span>;
 
 
-type Tab = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game';
+type Tab = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game-concept-art' | 'audio' |'game';
 
 export interface GeneratorProps {
   apiLock: {
@@ -30,6 +34,7 @@ export interface GeneratorProps {
     lockApi: () => void;
     unlockApi: () => void;
   };
+  onFlashOfInspiration?: () => void;
 }
 
 interface TabConfig {
@@ -48,10 +53,16 @@ const TABS: TabConfig[] = [
     { id: 'chest', label: '宝箱', icon: <ChestIcon />, component: TreasureChestGenerator },
     { id: 'equipment', label: '装备图标', icon: <EquipmentIcon />, component: EquipmentGenerator },
     { id: 'item', label: '物品图标', icon: <ItemIcon />, component: ItemGenerator },
+    { id: 'game-concept-art', label: '游戏原画', icon: <ConceptArtIcon />, component: GameCGGenerator },
+    { id: 'audio', label: '游戏音频', icon: <AudioIcon />, component: GameAudioGenerator },
     { id: 'game', label: '游戏策划', icon: <GameIcon />, component: GameAssembler },
 ];
 
-const GeneratorTabs: React.FC = () => {
+interface GeneratorTabsProps {
+  onFlashOfInspiration: () => void;
+}
+
+const GeneratorTabs: React.FC<GeneratorTabsProps> = ({ onFlashOfInspiration }) => {
   const [activeTab, setActiveTab] = useState<Tab>('character');
   const [isApiLocked, setIsApiLocked] = useState(false);
 
@@ -108,7 +119,10 @@ const GeneratorTabs: React.FC = () => {
                 hidden={activeTab !== tab.id}
                 className="w-full"
             >
-              <Component apiLock={apiLock} />
+              <Component 
+                apiLock={apiLock} 
+                {...(tab.id === 'game' && { onFlashOfInspiration })}
+              />
              </div>
             );
         })}

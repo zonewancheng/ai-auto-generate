@@ -445,6 +445,142 @@ The creature is: "${userPrompt}".
   }
 };
 
+// --- Game Concept Art Generation ---
+
+export const generateGameConceptArt = async (userPrompt: string): Promise<string> => {
+  const masterPrompt = `
+Generate a high-quality, vibrant, and dynamic game concept art illustration based on the user's scene description.
+The scene is: "${userPrompt}".
+
+**CRITICAL STYLE REQUIREMENT:**
+The art style must be a beautiful, high-detail digital painting aesthetic, similar to promotional art for modern JRPGs (like Final Fantasy or Genshin Impact). The lighting should be dramatic and the composition should be cinematic.
+
+**Technical Specifications:**
+- The output MUST be a single, high-resolution PNG image.
+- The aspect ratio should be 16:9 (widescreen).
+- Do not include any text, user interface elements, watermarks, or borders on the image.
+  `;
+
+  try {
+    const response = await ai.models.generateImages({
+        model: 'imagen-4.0-generate-001',
+        prompt: masterPrompt,
+        config: {
+          numberOfImages: 1,
+          outputMimeType: 'image/png',
+          aspectRatio: '16:9',
+        },
+    });
+
+    if (response.generatedImages?.[0]?.image?.imageBytes) {
+      const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+      return `data:image/png;base64,${base64ImageBytes}`;
+    } else {
+      throw new Error("API 未返回任何图像数据。");
+    }
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const generateConceptArtFromAssets = async (assets: AssetRecord[], userPrompt: string): Promise<string> => {
+    const masterPrompt = `
+You are an expert game illustrator. Create a single, high-quality, vibrant, and dynamic game concept art illustration based on the user's scene description and the provided reference images.
+The final image should be a cohesive scene that incorporates the characters, creatures, or items from the reference images.
+
+User's scene description: "${userPrompt}".
+
+**CRITICAL STYLE REQUIREMENT:**
+The art style must be a beautiful, high-detail digital painting aesthetic, similar to promotional art for modern JRPGs (like Final Fantasy or Genshin Impact). The lighting should be dramatic and the composition should be cinematic.
+
+**Technical Specifications:**
+- The output MUST be a single, high-resolution PNG image.
+- The aspect ratio should be 16:9 (widescreen).
+- Do not include any text, user interface elements, watermarks, or borders on the image.
+- Use the provided images as direct visual references for the subjects in your illustration.
+`;
+
+    const parts: any[] = [{ text: masterPrompt }];
+    for (const asset of assets) {
+        const pureBase64 = asset.imageDataUrl.split(',')[1];
+        if (pureBase64) {
+            parts.push({ inlineData: { data: pureBase64, mimeType: 'image/png' } });
+        }
+    }
+
+    if (parts.length <= 1) {
+        throw new Error("没有提供有效的资源图片。");
+    }
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        const imagePart = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+        if (imagePart?.inlineData?.data) {
+            return `data:image/png;base64,${imagePart.inlineData.data}`;
+        } else {
+            const textPart = response.candidates?.[0]?.content?.parts.find(part => part.text);
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。";
+            throw new Error(refusalMessage);
+        }
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// --- Game Audio Generation ---
+
+export const generateAudioDescription = async (userPrompt: string, type: 'sfx' | 'music'): Promise<string> => {
+  const sfxPrompt = `
+You are a professional sound designer for video games. Your task is to generate a detailed description of a sound effect based on the user's request. This description will be used by an actual sound designer to create the sound.
+
+User's request: "${userPrompt}"
+
+**CRITICAL INSTRUCTIONS:**
+1.  **Be Vivid and Descriptive:** Use evocative language. Describe the sound's texture, layers, timing, and emotional impact.
+2.  **Break it Down:** Describe the sound in terms of its core components (e.g., Attack, Sustain, Decay).
+3.  **Provide Context:** Suggest how the sound might change based on distance or environment.
+4.  **No Audio Files:** Your output MUST be text only.
+
+Generate the sound effect description now.
+  `;
+  
+  const musicPrompt = `
+You are a professional music composer for video games. Your task is to write a detailed creative brief for a short musical piece or loop based on the user's request. This brief will be used by a composer to write the music.
+
+User's request: "${userPrompt}"
+
+**CRITICAL INSTRUCTIONS:**
+1.  **Describe the Mood:** What is the core emotion of the piece (e.g., heroic, mysterious, peaceful, tense)?
+2.  **Suggest Instrumentation:** What instruments would be appropriate (e.g., orchestral strings, chiptune synths, folk guitar, epic drums)?
+3.  **Describe Melody & Harmony:** Is the melody simple and memorable or complex and evolving? Is the harmony major (happy) or minor (sad)?
+4.  **Describe Rhythm:** Is the tempo fast or slow? What is the rhythmic feel (e.g., driving, ambient, marching)?
+5.  **Reference Similar Styles:** You can mention styles from other games or genres to provide a clear reference point.
+6.  **No Audio or Sheet Music:** Your output MUST be text only.
+
+Generate the music brief now.
+  `;
+
+  const masterPrompt = type === 'sfx' ? sfxPrompt : musicPrompt;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: masterPrompt,
+    });
+    return response.text;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+
 // --- Game Assembler ---
 
 const gamePlanSchema = {

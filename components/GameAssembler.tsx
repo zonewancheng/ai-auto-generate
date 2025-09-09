@@ -162,7 +162,7 @@ const GamePlanHistoryPanel: React.FC<{
 };
 
 
-const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
+const GameAssembler: React.FC<GeneratorProps> = ({ apiLock, onFlashOfInspiration }) => {
     const [gameConcept, setGameConcept] = useState('');
     const [selectedAssets, setSelectedAssets] = useState<SelectedAssets>({});
     const [isModalOpen, setIsModalOpen] = useState<AssetSlot | null>(null);
@@ -389,18 +389,32 @@ const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
                     {!gameBlueprint && (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="text-2xl text-yellow-400 mb-2 font-press-start">1. 定义你的游戏</h2>
+                                <h2 className="text-2xl text-yellow-400 mb-2 font-press-start">开始策划</h2>
+                                <p className="text-gray-300 mb-4 text-lg">通过描述概念、选择核心资源来手动构建，或...</p>
+                                {onFlashOfInspiration && (
+                                    <button
+                                        onClick={onFlashOfInspiration}
+                                        disabled={apiLock.isApiLocked}
+                                        className="font-press-start text-base px-4 py-3 w-full bg-yellow-400 text-gray-900 border-b-4 border-yellow-600 rounded-lg shadow-lg hover:bg-yellow-300 hover:border-yellow-500 active:bg-yellow-500 active:translate-y-1 transition-all duration-100 ease-in-out flex items-center justify-center"
+                                        title="根据已有素材，自动生成一个迷你游戏！"
+                                    >
+                                        <span className="mr-2 text-xl">💡</span>
+                                        灵光一闪！(自动生成)
+                                    </button>
+                                )}
+                                <div className="my-4 text-center text-gray-500 font-press-start">-- 或 --</div>
+                                <h3 className="text-xl text-yellow-400 mb-2 font-press-start">1. 定义你的游戏</h3>
                                 <textarea
                                     value={gameConcept}
                                     onChange={(e) => setGameConcept(e.target.value)}
                                     placeholder="例如：英雄必须找到一把魔法剑来击败守护失落宝藏的恶龙。"
-                                    className="w-full h-32 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
+                                    className="w-full h-24 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
                                     disabled={apiLock.isApiLocked}
                                 />
                             </div>
 
                             <div>
-                                <h2 className="text-2xl text-yellow-400 mb-2 font-press-start">2. 选择核心资源</h2>
+                                <h2 className="text-xl text-yellow-400 mb-2 font-press-start">2. 选择核心资源</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     {Object.entries(ASSET_SLOT_CONFIG).map(([slot, config]) => (
                                         <div key={slot}>

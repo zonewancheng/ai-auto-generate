@@ -85,9 +85,9 @@ const App: React.FC = () => {
           onClose={() => setIsGamePreviewOpen(false)} 
         />
       )}
-      <Header onFlashOfInspiration={handleFlashOfInspiration} />
+      <Header />
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        <GeneratorTabs />
+        <GeneratorTabs onFlashOfInspiration={handleFlashOfInspiration} />
       </main>
       <Footer />
     </div>
