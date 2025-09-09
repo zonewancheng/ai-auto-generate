@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import CharacterGenerator from './CharacterGenerator';
 import MapGenerator from './MapGenerator';
@@ -11,6 +10,8 @@ import PetGenerator from './PetGenerator';
 import GameAssembler from './GameAssembler';
 import GameCGGenerator from './GameCGGenerator';
 import GameAudioGenerator from './GameAudioGenerator';
+import CharacterSkillGenerator from './CharacterSkillGenerator';
+import StatsDesigner from './StatsDesigner';
 
 // 使用更具 JRPG 风格的图标
 const CharacterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👤</span>;
@@ -24,9 +25,11 @@ const PetIcon = () => <span className="w-6 h-6 mr-3 text-lg">🐾</span>;
 const GameIcon = () => <span className="w-6 h-6 mr-3 text-lg">📜</span>;
 const ConceptArtIcon = () => <span className="w-6 h-6 mr-3 text-lg">🎨</span>;
 const AudioIcon = () => <span className="w-6 h-6 mr-3 text-lg">🎵</span>;
+const SkillIcon = () => <span className="w-6 h-6 mr-3 text-lg">🔮</span>;
+const StatsIcon = () => <span className="w-6 h-6 mr-3 text-lg">📊</span>;
 
 
-type Tab = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game-concept-art' | 'audio' |'game';
+type Tab = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game-concept-art' | 'audio' | 'skill' | 'stats' | 'game';
 
 export interface GeneratorProps {
   apiLock: {
@@ -55,6 +58,8 @@ const TABS: TabConfig[] = [
     { id: 'item', label: '物品图标', icon: <ItemIcon />, component: ItemGenerator },
     { id: 'game-concept-art', label: '游戏原画', icon: <ConceptArtIcon />, component: GameCGGenerator },
     { id: 'audio', label: '游戏音频', icon: <AudioIcon />, component: GameAudioGenerator },
+    { id: 'skill', label: '角色技能', icon: <SkillIcon />, component: CharacterSkillGenerator },
+    { id: 'stats', label: '数值设计', icon: <StatsIcon />, component: StatsDesigner },
     { id: 'game', label: '游戏策划', icon: <GameIcon />, component: GameAssembler },
 ];
 

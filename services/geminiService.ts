@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -61,7 +60,7 @@ The character should be centered in the frame.
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -90,12 +89,21 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
             },
         });
 
-        const imagePart = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+        const candidate = response.candidates?.[0];
+        const imagePart = candidate?.content?.parts.find(part => part.inlineData);
+
         if (imagePart?.inlineData?.data) {
             return `data:image/png;base64,${imagePart.inlineData.data}`;
         } else {
-            const textPart = response.candidates?.[0]?.content?.parts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。";
+            if (candidate?.finishReason === 'SAFETY') {
+                const safetyMessage = candidate.safetyRatings
+                    ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
+                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    .join(', ');
+                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+            }
+            const textPart = candidate?.content?.parts.find(part => part.text);
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -169,12 +177,20 @@ User's request: "${userPrompt}".
             },
         });
 
-        const imagePart = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+        const candidate = response.candidates?.[0];
+        const imagePart = candidate?.content?.parts.find(part => part.inlineData);
         if (imagePart?.inlineData?.data) {
             return `data:image/png;base64,${imagePart.inlineData.data}`;
         } else {
-            const textPart = response.candidates?.[0]?.content?.parts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。";
+             if (candidate?.finishReason === 'SAFETY') {
+                const safetyMessage = candidate.safetyRatings
+                    ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
+                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    .join(', ');
+                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+            }
+            const textPart = candidate?.content?.parts.find(part => part.text);
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -252,7 +268,7 @@ The theme of the tileset is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -308,7 +324,7 @@ The animation should depict the user's requested effect, progressing logically f
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -348,7 +364,7 @@ The chest's appearance is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -386,7 +402,7 @@ The item is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -424,7 +440,7 @@ The equipment is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -461,7 +477,7 @@ The monster is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -503,7 +519,7 @@ The creature is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -541,7 +557,7 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。");
+      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
     }
   } catch (error) {
     handleApiError(error);
@@ -586,12 +602,20 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
             },
         });
 
-        const imagePart = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+        const candidate = response.candidates?.[0];
+        const imagePart = candidate?.content?.parts.find(part => part.inlineData);
         if (imagePart?.inlineData?.data) {
             return `data:image/png;base64,${imagePart.inlineData.data}`;
         } else {
-            const textPart = response.candidates?.[0]?.content?.parts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。";
+            if (candidate?.finishReason === 'SAFETY') {
+                const safetyMessage = candidate.safetyRatings
+                    ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
+                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    .join(', ');
+                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+            }
+            const textPart = candidate?.content?.parts.find(part => part.text);
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -638,6 +662,93 @@ Generate the music brief now.
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: masterPrompt,
+    });
+    return response.text;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+// --- Character Skill Design ---
+
+const skillDesignSchema = {
+  type: Type.OBJECT,
+  properties: {
+    skillName: { type: Type.STRING, description: '一个很酷的、有主题的技能名称。' },
+    description: { type: Type.STRING, description: '技能在游戏中向玩家展示的描述。' },
+    mpCost: { type: Type.INTEGER, description: '使用该技能所需的 MP (魔法值) 数量。' },
+    damageType: { type: Type.STRING, description: '伤害类型 (例如，火焰、冰霜、物理、神圣、黑暗)。' },
+    target: { type: Type.STRING, description: '技能影响的对象 (例如，单个敌人、所有敌人、盟友、自己)。' },
+    effects: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: '该技能施加的特殊效果或状态异常列表 (例如，“使目标中毒”、“降低敌人防御”、“治疗 100 点生命值”)。'
+    },
+  },
+  required: ['skillName', 'description', 'mpCost', 'damageType', 'target', 'effects'],
+};
+
+export const generateSkillDesign = async (userPrompt: string): Promise<string> => {
+  const masterPrompt = `
+你是一位专业的 JRPG 游戏设计师。根据用户的概念设计一个角色技能。
+输出必须是符合所提供 schema 的 JSON 对象。
+
+用户的技能概念: "${userPrompt}"
+
+立即生成技能设计。
+  `;
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: masterPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: skillDesignSchema,
+      },
+    });
+    return response.text;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+// --- Stats Design ---
+
+const statsDesignSchema = {
+  type: Type.OBJECT,
+  properties: {
+    hp: { type: Type.INTEGER, description: '最大生命值 (Health)。一个典型的 1 级英雄大约有 500 点。' },
+    mp: { type: Type.INTEGER, description: '最大魔法值 (Mana)。一个典型的 1 级法师大约有 100 点。' },
+    atk: { type: Type.INTEGER, description: '攻击力 (物理)。一个典型的 1 级战士大约有 15 点。' },
+    def: { type: Type.INTEGER, description: '防御力 (物理)。一个典型的 1 级坦克大约有 20 点。' },
+    mat: { type: Type.INTEGER, description: '魔法攻击力。一个典型的 1 级法师大约有 20 点。' },
+    mdf: { type: Type.INTEGER, description: '魔法防御力。一个典型的 1 级牧师大约有 15 点。' },
+    agi: { type: Type.INTEGER, description: '敏捷 (速度/闪避)。一个典型的 1 级盗贼大约有 20 点。' },
+    luk: { type: Type.INTEGER, description: '运气。影响各种事物。一个典型的 1 级角色大约有 10 点。' },
+    rationale: { type: Type.STRING, description: '简要解释为什么根据用户提示选择这些属性值。' }
+  },
+  required: ['hp', 'mp', 'atk', 'def', 'mat', 'mdf', 'agi', 'luk', 'rationale'],
+};
+
+export const generateStatsDesign = async (userPrompt: string): Promise<string> => {
+    const masterPrompt = `
+你是一位为 RPG Maker MZ 游戏平衡属性的专业游戏设计师。
+根据用户的描述为 1 级角色或怪物设计一套基础属性。
+输出必须是符合所提供 schema 的 JSON 对象。
+使用典型的 RPG Maker 值为 1 级实体设定基线。
+
+用户描述: "${userPrompt}"
+
+立即生成属性。
+  `;
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: masterPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: statsDesignSchema,
+      },
     });
     return response.text;
   } catch (error) {
@@ -853,7 +964,7 @@ export interface AssetRecord {
   id?: number;
   type: string;
   prompt: string;
-  imageDataUrl: string;
+  imageDataUrl: string; // For text-based assets, this stores the text/JSON string
   timestamp: number;
 }
 
