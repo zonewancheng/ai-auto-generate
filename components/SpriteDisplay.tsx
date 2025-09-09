@@ -39,7 +39,7 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
       return (
         <div className="flex flex-col items-center justify-center h-full text-center">
           <div className="text-red-500 text-5xl mb-4">!</div>
-          <p className="text-xl text-red-400">Generation Failed</p>
+          <p className="text-xl text-red-400">生成失败</p>
           <p className="text-gray-400 mt-2">{error}</p>
         </div>
       );
@@ -55,13 +55,13 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
               style={{ imageRendering: 'pixelated' }}
             />
           </div>
-          <p className="text-gray-300 mt-4 text-center">Right-click and "Save Image As..." to download.</p>
+          <p className="text-gray-300 mt-4 text-center">右键点击并“图像另存为...”来下载。</p>
            <a
             href={generatedImage}
             download={downloadFileName}
             className="mt-4 inline-block w-full max-w-xs"
            >
-            <Button className="w-full">Download PNG</Button>
+            <Button className="w-full">下载 PNG</Button>
            </a>
         </div>
       );

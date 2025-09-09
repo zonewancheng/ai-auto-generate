@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { generateTileset, restyleMapImage, adjustGeneratedImage, addAsset, getAssetsByType, AssetRecord } from '../services/geminiService';
 import Button from './Button';
@@ -8,18 +9,18 @@ import { GeneratorProps } from './GeneratorTabs';
 type Mode = 'generate' | 'restyle';
 
 const placeholderExamples = [
-    "Mystical forest with glowing mushrooms and ancient, mossy trees.",
-    "Ancient desert ruins with sandstone columns and a hidden oasis.",
-    "A bustling port town with wooden docks, ships, and market stalls.",
-    "A serene mountain temple surrounded by cherry blossom trees.",
-    "A crystal-filled cavern with luminous gems and underground rivers.",
+    "神秘的森林，有发光的蘑菇和古老的、长满青苔的树木。",
+    "古老的沙漠遗迹，有砂岩柱子和隐藏的绿洲。",
+    "繁华的港口小镇，有木制码头、船只和市场摊位。",
+    "宁静的山顶寺庙，周围环绕着樱花树。",
+    "充满水晶的洞穴，有发光的宝石和地下河流。",
 ];
 
 const HistoryPanel: React.FC<{ history: AssetRecord[], onSelect: (item: AssetRecord) => void, disabled: boolean }> = ({ history, onSelect, disabled }) => (
   <div className="mt-6 border-t-2 border-gray-700 pt-4">
-    <h3 className="text-xl text-yellow-400 mb-2 font-press-start">History</h3>
+    <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
     {history.length === 0 ? (
-      <p className="text-gray-500">Your generated maps will appear here.</p>
+      <p className="text-gray-500">你生成的地图将显示在此处。</p>
     ) : (
       <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
         {history.map(item => (
@@ -82,7 +83,7 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       await addAsset({ type: 'map', prompt, imageDataUrl });
       loadHistory();
     } catch (err) {
-      setError(err instanceof Error ? `Generation failed: ${err.message}` : 'An unknown error occurred.');
+      setError(err instanceof Error ? `生成失败: ${err.message}` : '发生未知错误。');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -101,10 +102,10 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       const imageDataUrl = await adjustGeneratedImage(generatedImage, adjustmentPrompt);
       setGeneratedImage(imageDataUrl);
       setAdjustmentPrompt('');
-      await addAsset({ type: 'map', prompt: `Adjusted: ${adjustmentPrompt} (Original: ${prompt})`, imageDataUrl });
+      await addAsset({ type: 'map', prompt: `已调整: ${adjustmentPrompt} (原始: ${prompt})`, imageDataUrl });
       loadHistory();
     } catch (err) {
-      setError(err instanceof Error ? `Adjustment failed: ${err.message}` : 'An unknown error occurred.');
+      setError(err instanceof Error ? `调整失败: ${err.message}` : '发生未知错误。');
       console.error(err);
     } finally {
       setIsAdjusting(false);
@@ -120,13 +121,13 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     setGeneratedImage(null);
 
     try {
-      const finalPrompt = stylePrompt || "Restyled map";
+      const finalPrompt = stylePrompt || "重绘风格的地图";
       const imageDataUrl = await restyleMapImage(uploadedImage, stylePrompt);
       setGeneratedImage(imageDataUrl);
       await addAsset({ type: 'map', prompt: finalPrompt, imageDataUrl });
       loadHistory();
     } catch (err) {
-       setError(err instanceof Error ? `Restyling failed: ${err.message}` : 'An unknown error occurred.');
+       setError(err instanceof Error ? `重绘风格失败: ${err.message}` : '发生未知错误。');
        console.error(err);
     } finally {
       setIsLoading(false);
@@ -143,7 +144,7 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         setError(null);
       };
       reader.onerror = () => {
-        setError("Failed to read the uploaded file.");
+        setError("读取上传文件失败。");
       }
       reader.readAsDataURL(file);
     }
@@ -169,32 +170,32 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         disabled={apiLock.isApiLocked}
         className={`w-1/2 font-press-start text-lg py-3 rounded-md transition-colors ${mode === 'generate' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700 disabled:opacity-50'}`}
       >
-        Generate New Tileset
+        生成新图块
       </button>
       <button
         onClick={() => setMode('restyle')}
         disabled={apiLock.isApiLocked}
         className={`w-1/2 font-press-start text-lg py-3 rounded-md transition-colors ${mode === 'restyle' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700 disabled:opacity-50'}`}
       >
-        Restyle My Map
+        重绘我的地图
       </button>
     </div>
   );
 
   const renderGenerateMode = () => (
     <>
-      <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. Describe Tileset Theme</h2>
-      <p className="text-gray-300 mb-4 text-lg">Describe a theme. The AI will generate a tileset with a "Genshin Impact" pixel art style.</p>
+      <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. 描述图块主题</h2>
+      <p className="text-gray-300 mb-4 text-lg">描述一个主题，AI 将生成“原神”像素艺术风格的图块集。</p>
       
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="e.g., A peaceful village with a central well and cozy cottages."
+        placeholder="例如：一个宁静的村庄，有中央水井和舒适的小屋。"
         className="w-full h-48 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
         disabled={apiLock.isApiLocked}
       />
       <div className="my-4">
-        <p className="text-gray-400 mb-2 text-md">Or try an example:</p>
+        <p className="text-gray-400 mb-2 text-md">或试试这些示例：</p>
         <div className="flex flex-wrap gap-2">
             {placeholderExamples.map((ex, index) => (
                 <button 
@@ -203,48 +204,48 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                     disabled={apiLock.isApiLocked}
                     className="text-sm bg-gray-700 hover:bg-purple-600 text-gray-200 py-1 px-3 rounded-full transition-colors disabled:opacity-50"
                 >
-                    {ex.split(' ').slice(0, 3).join(' ')}...
+                    {ex.split('，')[0]}...
                 </button>
             ))}
         </div>
       </div>
       <Button onClick={handleGenerate} disabled={apiLock.isApiLocked || !prompt} className="mt-4 w-full">
-        {isLoading ? 'Generating...' : 'Generate Tileset'}
+        {isLoading ? '生成中...' : '生成图块集'}
       </Button>
     </>
   );
 
   const renderRestyleMode = () => (
     <>
-        <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. Upload Your Map</h2>
-        <p className="text-gray-300 mb-4 text-lg">Upload a screenshot of your RPG Maker map. The AI will redraw it in a "Genshin Impact" pixel art style to be used as a parallax background.</p>
+        <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. 上传你的地图</h2>
+        <p className="text-gray-300 mb-4 text-lg">上传你的 RPG Maker 地图截图。AI 将以“原神”像素艺术风格重绘它，用作视差背景。</p>
         
         <div 
             className="w-full h-48 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md focus:outline-none hover:border-purple-500 transition-colors text-lg text-gray-200 flex items-center justify-center cursor-pointer"
             onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
         >
             {uploadedImage ? (
-                <img src={uploadedImage} alt="Uploaded map preview" className="max-w-full max-h-full object-contain rounded" />
+                <img src={uploadedImage} alt="上传地图预览" className="max-w-full max-h-full object-contain rounded" />
             ) : (
-                <span className="text-gray-500 text-center">Click or drag & drop to upload map screenshot</span>
+                <span className="text-gray-500 text-center">点击或拖放以上传地图截图</span>
             )}
         </div>
         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked} />
 
         <div className="my-4">
-            <p className="text-gray-300 mb-2 text-md">2. Add Style Notes (Optional)</p>
+            <p className="text-gray-300 mb-2 text-md">2. 添加风格说明 (可选)</p>
             <input
                 type="text"
                 value={stylePrompt}
                 onChange={(e) => setStylePrompt(e.target.value)}
-                placeholder="e.g., make it a rainy night, add more flowers"
+                placeholder="例如：把它变成雨夜，添加更多花朵"
                 className="w-full p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200"
                 disabled={apiLock.isApiLocked || !uploadedImage}
             />
         </div>
         
         <Button onClick={handleRestyle} disabled={apiLock.isApiLocked || !uploadedImage} className="mt-4 w-full">
-            {isLoading ? 'Restyling...' : 'Restyle Map'}
+            {isLoading ? '重绘中...' : '重绘地图'}
         </Button>
     </>
   );
@@ -258,22 +259,22 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         </div>
         <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
           <div className='flex-grow'>
-            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">Result</h2>
+            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">结果</h2>
             <SpriteDisplay
               isLoading={isLoading || isAdjusting}
               error={error}
               generatedImage={generatedImage}
-              loadingText={isAdjusting ? 'Adjusting world...' : (mode === 'generate' ? 'Building tileset...' : 'Redrawing your world...')}
+              loadingText={isAdjusting ? '调整世界...' : (mode === 'generate' ? '构建图块集...' : '重绘你的世界...')}
               placeholder={
                 <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                     <div className="w-32 h-24 border-4 border-dashed border-gray-600 rounded-lg flex items-center justify-center">
                         <span className="text-5xl">🖼️</span>
                     </div>
-                    <p className="mt-4 text-xl">Your generated map/tileset will appear here.</p>
+                    <p className="mt-4 text-xl">你生成的地图/图块集将显示在此处。</p>
                 </div>
               }
               downloadFileName={mode === 'generate' ? 'genshin_tileset.png' : 'restyled_map.png'}
-              imageAlt="Generated map or tileset"
+              imageAlt="生成的地图或图块集"
               imageContainerClassName="bg-checkered-pattern p-2 border-2 border-gray-600 rounded-md w-full"
               imageClassName="w-full h-auto object-contain max-h-[350px]"
             />

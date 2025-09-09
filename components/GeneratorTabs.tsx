@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import CharacterGenerator from './CharacterGenerator';
 import MapGenerator from './MapGenerator';
@@ -9,16 +10,16 @@ import EquipmentGenerator from './EquipmentGenerator';
 import PetGenerator from './PetGenerator';
 import GameAssembler from './GameAssembler';
 
-// Adding icons for a better visual experience
+// 使用更具 JRPG 风格的图标
 const CharacterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👤</span>;
 const MapIcon = () => <span className="w-6 h-6 mr-3 text-lg">🗺️</span>;
 const EffectIcon = () => <span className="w-6 h-6 mr-3 text-lg">✨</span>;
-const ChestIcon = () => <span className="w-6 h-6 mr-3 text-lg">🎁</span>;
-const MonsterIcon = () => <span className="w-6 h-6 mr-3 text-lg">🐲</span>;
+const ChestIcon = () => <span className="w-6 h-6 mr-3 text-lg">📦</span>; // 宝箱图标
+const MonsterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👹</span>; // 怪物图标
 const ItemIcon = () => <span className="w-6 h-6 mr-3 text-lg">💎</span>;
 const EquipmentIcon = () => <span className="w-6 h-6 mr-3 text-lg">⚔️</span>;
 const PetIcon = () => <span className="w-6 h-6 mr-3 text-lg">🐾</span>;
-const GameIcon = () => <span className="w-6 h-6 mr-3 text-lg">🎮</span>;
+const GameIcon = () => <span className="w-6 h-6 mr-3 text-lg">📜</span>; // 游戏策划图标
 
 
 type Tab = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game';
@@ -31,8 +32,6 @@ export interface GeneratorProps {
   };
 }
 
-// Fix: Changed `component` from `React.ReactNode` to `React.ComponentType<GeneratorProps>`
-// to correctly type the component and allow passing props without TypeScript errors.
 interface TabConfig {
     id: Tab;
     label: string;
@@ -40,18 +39,16 @@ interface TabConfig {
     component: React.ComponentType<GeneratorProps>;
 }
 
-// Fix: Stored component types (e.g., `CharacterGenerator`) instead of instances (e.g., `<CharacterGenerator />`)
-// to allow for proper prop passing at render time.
 const TABS: TabConfig[] = [
-    { id: 'character', label: 'Characters', icon: <CharacterIcon />, component: CharacterGenerator },
-    { id: 'monster', label: 'Monsters', icon: <MonsterIcon />, component: MonsterGenerator },
-    { id: 'pet', label: 'Pets', icon: <PetIcon />, component: PetGenerator },
-    { id: 'map', label: 'Maps', icon: <MapIcon />, component: MapGenerator },
-    { id: 'combat', label: 'Effects', icon: <EffectIcon />, component: CombatEffectGenerator },
-    { id: 'chest', label: 'Chests', icon: <ChestIcon />, component: TreasureChestGenerator },
-    { id: 'equipment', label: 'Equipment', icon: <EquipmentIcon />, component: EquipmentGenerator },
-    { id: 'item', label: 'Items', icon: <ItemIcon />, component: ItemGenerator },
-    { id: 'game', label: 'Game Assembler', icon: <GameIcon />, component: GameAssembler },
+    { id: 'character', label: '角色生成', icon: <CharacterIcon />, component: CharacterGenerator },
+    { id: 'monster', label: '怪物生成', icon: <MonsterIcon />, component: MonsterGenerator },
+    { id: 'pet', label: '宠物/坐骑', icon: <PetIcon />, component: PetGenerator },
+    { id: 'map', label: '地图/图块', icon: <MapIcon />, component: MapGenerator },
+    { id: 'combat', label: '战斗特效', icon: <EffectIcon />, component: CombatEffectGenerator },
+    { id: 'chest', label: '宝箱', icon: <ChestIcon />, component: TreasureChestGenerator },
+    { id: 'equipment', label: '装备图标', icon: <EquipmentIcon />, component: EquipmentGenerator },
+    { id: 'item', label: '物品图标', icon: <ItemIcon />, component: ItemGenerator },
+    { id: 'game', label: 'AI 游戏策划', icon: <GameIcon />, component: GameAssembler },
 ];
 
 const GeneratorTabs: React.FC = () => {
@@ -76,11 +73,8 @@ const GeneratorTabs: React.FC = () => {
   };
 
   return (
-    // On small screens (mobile), tabs are horizontal scrollable.
-    // On medium screens and up, it becomes a vertical sidebar layout.
     <div className="flex flex-col md:flex-row md:gap-8">
       
-      {/* Tab Navigation */}
       <nav className="
         flex flex-row overflow-x-auto md:overflow-x-visible md:flex-col 
         md:w-64 flex-shrink-0 
@@ -103,10 +97,7 @@ const GeneratorTabs: React.FC = () => {
         ))}
       </nav>
 
-      {/* Tab Panels */}
       <div className="flex-grow min-w-0">
-        {/* Fix: Replaced `React.cloneElement` with direct component instantiation to pass props,
-            resolving the TypeScript errors. */}
         {TABS.map(tab => {
             const Component = tab.component;
             return (

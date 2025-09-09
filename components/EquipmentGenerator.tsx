@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { generateEquipmentSprite, adjustGeneratedImage, addAsset, getAssetsByType, AssetRecord } from '../services/geminiService';
 import Button from './Button';
@@ -6,19 +7,19 @@ import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
 
 const placeholderExamples = [
-    "A greatsword with a fiery enchanted blade.",
-    "Ornate platinum helmet with feathered wings.",
-    "A sturdy dragon-scale shield.",
-    "A magical staff topped with a glowing crystal.",
-    "Leather boots of speed with small wings on the ankles.",
-    "A powerful elven longbow.",
+    "一把带有火焰附魔刀刃的巨剑。",
+    "带有羽毛翅膀的华丽白金头盔。",
+    "一个坚固的龙鳞盾牌。",
+    "一个顶部镶嵌着发光水晶的魔法法杖。",
+    "脚踝处有小翅膀的皮质速度之靴。",
+    "一把强大的精灵长弓。",
 ];
 
 const HistoryPanel: React.FC<{ history: AssetRecord[], onSelect: (item: AssetRecord) => void, disabled: boolean }> = ({ history, onSelect, disabled }) => (
   <div className="mt-6 border-t-2 border-gray-700 pt-4">
-    <h3 className="text-xl text-yellow-400 mb-2 font-press-start">History</h3>
+    <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
     {history.length === 0 ? (
-      <p className="text-gray-500">Your generated equipment will appear here.</p>
+      <p className="text-gray-500">你生成的装备将显示在此处。</p>
     ) : (
       <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
         {history.map(item => (
@@ -76,7 +77,7 @@ const EquipmentGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       await addAsset({ type: 'equipment', prompt, imageDataUrl });
       loadHistory();
     } catch (err) {
-      setError(err instanceof Error ? `Generation failed: ${err.message}` : 'An unknown error occurred.');
+      setError(err instanceof Error ? `生成失败: ${err.message}` : '发生未知错误。');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -95,10 +96,10 @@ const EquipmentGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       const imageDataUrl = await adjustGeneratedImage(generatedImage, adjustmentPrompt);
       setGeneratedImage(imageDataUrl);
       setAdjustmentPrompt('');
-      await addAsset({ type: 'equipment', prompt: `Adjusted: ${adjustmentPrompt} (Original: ${prompt})`, imageDataUrl });
+      await addAsset({ type: 'equipment', prompt: `已调整: ${adjustmentPrompt} (原始: ${prompt})`, imageDataUrl });
       loadHistory();
     } catch (err) {
-      setError(err instanceof Error ? `Adjustment failed: ${err.message}` : 'An unknown error occurred.');
+      setError(err instanceof Error ? `调整失败: ${err.message}` : '发生未知错误。');
       console.error(err);
     } finally {
       setIsAdjusting(false);
@@ -120,18 +121,18 @@ const EquipmentGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700">
-        <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. Describe Your Equipment</h2>
-        <p className="text-gray-300 mb-4 text-lg">Describe a weapon, armor, or accessory. The AI will generate a 48x48px icon for it.</p>
+        <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. 描述你的装备</h2>
+        <p className="text-gray-300 mb-4 text-lg">描述一件武器、盔甲或配饰。AI 将为其生成一个 48x48 像素的图标。</p>
         
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g., A holy sword that glows with a faint light."
+          placeholder="例如：一把散发着微光的圣剑。"
           className="w-full h-48 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
           disabled={apiLock.isApiLocked}
         />
         <div className="my-4">
-          <p className="text-gray-400 mb-2 text-md">Or try an example:</p>
+          <p className="text-gray-400 mb-2 text-md">或试试这些示例：</p>
           <div className="flex flex-wrap gap-2">
               {placeholderExamples.map((ex, index) => (
                   <button 
@@ -140,33 +141,33 @@ const EquipmentGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                       disabled={apiLock.isApiLocked}
                       className="text-sm bg-gray-700 hover:bg-purple-600 text-gray-200 py-1 px-3 rounded-full transition-colors disabled:opacity-50"
                   >
-                      {ex.split(' ').slice(0, 3).join(' ')}...
+                      {ex.split('。')[0]}
                   </button>
               ))}
           </div>
         </div>
         <Button onClick={handleGenerate} disabled={apiLock.isApiLocked || !prompt} className="mt-4 w-full">
-          {isLoading ? 'Forging...' : 'Generate Equipment'}
+          {isLoading ? '锻造中...' : '生成装备'}
         </Button>
       </div>
       <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
         <div className="flex-grow">
-          <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">Result</h2>
+          <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">结果</h2>
           <SpriteDisplay
             isLoading={isLoading || isAdjusting}
             error={error}
             generatedImage={generatedImage}
-            loadingText={isAdjusting ? 'Reforging equipment...' : 'Crafting your equipment...'}
+            loadingText={isAdjusting ? '重铸装备...' : '制作你的装备...'}
             placeholder={
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                   <div className="w-24 h-24 border-4 border-dashed border-gray-600 rounded-lg flex items-center justify-center mb-4">
                       <span className="text-5xl">⚔️</span>
                   </div>
-                  <p className="text-xl">Your equipment icon will appear here.</p>
+                  <p className="text-xl">你的装备图标将显示在此处。</p>
               </div>
             }
             downloadFileName={'rpg_equipment.png'}
-            imageAlt="Generated equipment icon"
+            imageAlt="生成的装备图标"
             imageContainerClassName="bg-checkered-pattern p-2 border-2 border-gray-600 rounded-md"
             imageClassName="w-[48px] h-[48px]"
           />

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -18,20 +19,20 @@ const handleApiError = (error: unknown): never => {
             // The error message from the SDK might be a JSON string.
             const parsedError = JSON.parse(error.message);
             if (parsedError?.error?.code === 429) {
-                throw new Error("Request limit reached. Please wait a moment before trying again.");
+                throw new Error("已达到请求上限。请稍后再试。");
             }
             const message = parsedError?.error?.message || error.message;
-            throw new Error(`Gemini API Error: ${message}`);
+            throw new Error(`Gemini API 错误: ${message}`);
         } catch (e) {
             // If parsing fails, check the raw string for keywords related to rate limiting.
             if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-                throw new Error("Request limit reached. Please wait a moment before trying again.");
+                throw new Error("已达到请求上限。请稍后再试。");
             }
             // If it's not a rate limit error and parsing failed, use the original message.
-            throw new Error(`Gemini API Error: ${error.message}`);
+            throw new Error(`Gemini API 错误: ${error.message}`);
         }
     }
-    throw new Error("An unexpected error occurred while generating the image.");
+    throw new Error("生成图像时发生未知错误。");
 };
 
 // --- Step 1: Base Character Generation ---
@@ -60,7 +61,7 @@ The character should be centered in the frame.
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -72,7 +73,7 @@ The character should be centered in the frame.
 const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string): Promise<string> => {
     const pureBase64 = base64ImageDataUrl.split(',')[1];
     if (!pureBase64) {
-        throw new Error("Invalid base64 image data provided.");
+        throw new Error("提供了无效的 base64 图像数据。");
     }
 
     try {
@@ -94,7 +95,7 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
             return `data:image/png;base64,${imagePart.inlineData.data}`;
         } else {
             const textPart = response.candidates?.[0]?.content?.parts.find(part => part.text);
-            const refusalMessage = textPart?.text || "The API did not return a valid image. It may have refused the request.";
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。";
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -186,7 +187,7 @@ The theme of the tileset is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -242,7 +243,7 @@ The animation should depict the user's requested effect, progressing logically f
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -282,7 +283,7 @@ The chest's appearance is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -320,7 +321,7 @@ The item is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -358,7 +359,7 @@ The equipment is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -395,7 +396,7 @@ The monster is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -437,7 +438,7 @@ The creature is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("The API did not return any image data.");
+      throw new Error("API 未返回任何图像数据。");
     }
   } catch (error) {
     handleApiError(error);
@@ -628,7 +629,7 @@ export const initDB = (): Promise<IDBDatabase> => {
 
     request.onerror = () => {
       console.error('Database error:', request.error);
-      reject('Error opening database');
+      reject('打开数据库时出错');
     };
 
     request.onsuccess = () => {
@@ -671,7 +672,7 @@ export const addAsset = async (asset: Omit<AssetRecord, 'id' | 'timestamp'>): Pr
     };
     request.onerror = () => {
       console.error('Error adding asset:', request.error);
-      reject('Error adding asset');
+      reject('添加资源时出错');
     };
   });
 };
@@ -690,7 +691,7 @@ export const getAssetsByType = async (type: string): Promise<AssetRecord[]> => {
         };
         request.onerror = () => {
             console.error('Error getting assets by type:', request.error);
-            reject('Error getting assets');
+            reject('获取资源时出错');
         };
     });
 };

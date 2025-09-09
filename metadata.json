@@ -1,5 +1,5 @@
 {
-  "name": "RPG Maker Character Generator",
-  "description": "An AI-powered web app to automatically generate pixel art character sprite sheets for RPG Maker. Describe your character, and the AI will create a ready-to-use sprite sheet in the correct format.",
+  "name": "AI RPG 资源工厂",
+  "description": "一个由 AI 驱动的 Web 应用，可为 RPG Maker 自动生成像素艺术角色、地图、特效等资源。只需描述你的想法，AI 即可为您创建可直接使用的资源。",
   "requestFramePermissions": []
 }
