@@ -117,6 +117,71 @@ User's adjustment request: "${adjustmentPrompt}".
     return generateAssetFromImage(base64ImageDataUrl, masterPrompt);
 };
 
+export const optimizeCharacterImage = async (
+  base64ImageDataUrl: string,
+  userPrompt: string,
+  referenceImageBase64DataUrl?: string | null
+): Promise<string> => {
+    let masterPrompt = `
+You are an expert pixel art artist. Take the user's provided pixel art character (the first image) and enhance it based on their request, improving its overall quality.
+User's request: "${userPrompt}".
+`;
+
+    if (referenceImageBase64DataUrl) {
+        masterPrompt += `
+**STYLE REFERENCE:** The second image provided is a style reference. You MUST adapt the first image to match the artistic style (colors, shading, line work, and overall aesthetic) of the reference image.
+`;
+    }
+
+    masterPrompt += `
+**CRITICAL INSTRUCTIONS:**
+1.  **Preserve Dimensions:** The output image MUST have the exact same dimensions as the FIRST input image. This is the most important rule. Do not change the width or height.
+2.  **Preserve Core Design:** Maintain the original character's pose and fundamental design from the FIRST image.
+3.  **Enhance Quality:** Improve the shading, clean up messy pixels, and refine details to make it look like professional 16-bit JRPG pixel art.
+4.  **Transparent Background:** The output MUST have a transparent background, matching the input.
+5.  **No Text:** The output must be a single PNG image with no text, watermarks, or artifacts.
+`;
+
+    const mainImageBase64 = base64ImageDataUrl.split(',')[1];
+    if (!mainImageBase64) {
+        throw new Error("提供了无效的主图像数据。");
+    }
+
+    const parts: any[] = [
+        { inlineData: { data: mainImageBase64, mimeType: 'image/png' } },
+    ];
+    
+    if (referenceImageBase64DataUrl) {
+        const referenceImageBase64 = referenceImageBase64DataUrl.split(',')[1];
+        if (referenceImageBase64) {
+            parts.push({ inlineData: { data: referenceImageBase64, mimeType: 'image/png' } });
+        }
+    }
+    
+    parts.push({ text: masterPrompt });
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        const imagePart = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+        if (imagePart?.inlineData?.data) {
+            return `data:image/png;base64,${imagePart.inlineData.data}`;
+        } else {
+            const textPart = response.candidates?.[0]?.content?.parts.find(part => part.text);
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。";
+            throw new Error(refusalMessage);
+        }
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
 export const generateWalkingSpriteFromImage = async (base64ImageDataUrl: string): Promise<string> => {
     const prompt = `
 Using the provided character image as a reference, generate a complete RPG Maker MZ walking animation sprite sheet.
