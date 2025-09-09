@@ -5,6 +5,7 @@ import Button from './Button';
 import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
+import ImagePreviewModal from './ImagePreviewModal';
 
 type Mode = 'generate' | 'restyle';
 
@@ -20,8 +21,9 @@ const HistoryPanel: React.FC<{
   history: AssetRecord[], 
   onSelect: (item: AssetRecord) => void, 
   onDelete: (id: number) => void,
-  disabled: boolean 
-}> = ({ history, onSelect, onDelete, disabled }) => {
+  disabled: boolean,
+  onImageClick: (url: string) => void,
+}> = ({ history, onSelect, onDelete, disabled, onImageClick }) => {
   const handleDelete = (e: React.MouseEvent, id: number | undefined) => {
     e.stopPropagation();
     if (typeof id === 'number' && window.confirm('你确定要删除这条历史记录吗？')) {
@@ -43,7 +45,14 @@ const HistoryPanel: React.FC<{
                 disabled={disabled}
                 className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <img src={item.imageDataUrl} alt={item.prompt} className="flex-shrink-0 w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm" style={{ imageRendering: 'pixelated' }} />
+                <img 
+                  src={item.imageDataUrl} 
+                  alt={item.prompt} 
+                  className="flex-shrink-0 w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm cursor-zoom-in" 
+                  style={{ imageRendering: 'pixelated' }} 
+                  onClick={(e) => { e.stopPropagation(); onImageClick(item.imageDataUrl); }}
+                  title="点击放大预览"
+                />
                 <div className="flex-grow overflow-hidden">
                   <p className="text-gray-200 truncate font-semibold">{item.prompt}</p>
                   <p className="text-sm text-gray-500">{new Date(item.timestamp).toLocaleString()}</p>
@@ -76,6 +85,7 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [error, setError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [history, setHistory] = useState<AssetRecord[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -258,7 +268,13 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
         >
             {uploadedImage ? (
-                <img src={uploadedImage} alt="上传地图预览" className="max-w-full max-h-full object-contain rounded" />
+                <img 
+                  src={uploadedImage} 
+                  alt="上传地图预览" 
+                  className="max-w-full max-h-full object-contain rounded cursor-zoom-in" 
+                  onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} 
+                  title="点击放大预览"
+                />
             ) : (
                 <span className="text-gray-500 text-center">点击或拖放以上传地图截图</span>
             )}
@@ -285,6 +301,7 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
 
   return (
     <div>
+      {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
       {renderModeSwitcher()}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700">
@@ -321,7 +338,7 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                 />
             )}
           </div>
-          <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked}/>
+          <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage}/>
         </div>
       </div>
     </div>

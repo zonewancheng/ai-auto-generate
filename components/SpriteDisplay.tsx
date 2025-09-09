@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import Button from './Button';
+import ImagePreviewModal from './ImagePreviewModal';
 
 interface SpriteDisplayProps {
   isLoading: boolean;
@@ -26,6 +27,8 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
   imageContainerClassName = 'bg-checkered-pattern p-4 border-2 border-gray-600 rounded-md',
   imageClassName = '',
 }) => {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -46,24 +49,40 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
     }
     if (generatedImage) {
       return (
-        <div className="flex flex-col items-center w-full">
-          <div className={imageContainerClassName}>
-            <img 
-              src={generatedImage} 
-              alt={imageAlt}
-              className={imageClassName}
-              style={{ imageRendering: 'pixelated' }}
+        <>
+          {isPreviewOpen && (
+            <ImagePreviewModal
+              imageUrl={generatedImage}
+              altText={imageAlt}
+              onClose={() => setIsPreviewOpen(false)}
             />
+          )}
+          <div className="flex flex-col items-center w-full">
+            <div
+              className={`${imageContainerClassName} transition-transform hover:scale-105 cursor-zoom-in`}
+              onClick={() => setIsPreviewOpen(true)}
+              title="点击放大预览"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setIsPreviewOpen(true)}
+            >
+              <img 
+                src={generatedImage} 
+                alt={imageAlt}
+                className={imageClassName}
+                style={{ imageRendering: 'pixelated' }}
+              />
+            </div>
+            <p className="text-gray-300 mt-4 text-center">右键点击并“图像另存为...”来下载。</p>
+            <a
+              href={generatedImage}
+              download={downloadFileName}
+              className="mt-4 inline-block w-full max-w-xs"
+            >
+              <Button className="w-full">下载 PNG</Button>
+            </a>
           </div>
-          <p className="text-gray-300 mt-4 text-center">右键点击并“图像另存为...”来下载。</p>
-           <a
-            href={generatedImage}
-            download={downloadFileName}
-            className="mt-4 inline-block w-full max-w-xs"
-           >
-            <Button className="w-full">下载 PNG</Button>
-           </a>
-        </div>
+        </>
       );
     }
     return placeholder;

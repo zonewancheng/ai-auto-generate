@@ -16,6 +16,7 @@ import Button from './Button';
 import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
+import ImagePreviewModal from './ImagePreviewModal';
 
 
 type AssetType = 'walking' | 'battler' | 'faceset';
@@ -48,8 +49,9 @@ const HistoryPanel: React.FC<{
   history: AssetRecord[], 
   onSelect: (item: AssetRecord) => void, 
   onDelete: (id: number) => void,
-  disabled: boolean 
-}> = ({ history, onSelect, onDelete, disabled }) => {
+  disabled: boolean,
+  onImageClick: (url: string) => void,
+}> = ({ history, onSelect, onDelete, disabled, onImageClick }) => {
 
   const handleDelete = (e: React.MouseEvent, id: number | undefined) => {
     e.stopPropagation(); // Prevent onSelect from firing
@@ -72,7 +74,14 @@ const HistoryPanel: React.FC<{
                 disabled={disabled}
                 className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <img src={item.imageDataUrl} alt={item.prompt} className="flex-shrink-0 w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm" style={{ imageRendering: 'pixelated' }} />
+                <img 
+                  src={item.imageDataUrl} 
+                  alt={item.prompt} 
+                  className="flex-shrink-0 w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm cursor-zoom-in" 
+                  style={{ imageRendering: 'pixelated' }} 
+                  onClick={(e) => { e.stopPropagation(); onImageClick(item.imageDataUrl); }}
+                  title="点击放大预览"
+                />
                 <div className="flex-grow overflow-hidden">
                   <p className="text-gray-200 truncate font-semibold">{item.prompt}</p>
                   <p className="text-sm text-gray-500">{new Date(item.timestamp).toLocaleString()}</p>
@@ -120,6 +129,8 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [optimizationChoices, setOptimizationChoices] = useState<Record<OptimizationChoice, boolean>>({ sharpen: false, shading: false, colors: false });
   const [styleInfluence, setStyleInfluence] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
 
   const loadHistory = useCallback(async () => {
@@ -349,6 +360,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
 
   const renderDescribeStep = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
       <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700">
         <div className="flex justify-center bg-gray-900 p-2 rounded-lg mb-6 border-2 border-gray-700">
             <button
@@ -406,7 +418,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                 onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
             >
                 {uploadedImage ? (
-                    <img src={uploadedImage} alt="上传角色预览" className="max-w-full max-h-full object-contain rounded" style={{ imageRendering: 'pixelated' }} />
+                    <img src={uploadedImage} alt="上传角色预览" className="max-w-full max-h-full object-contain rounded cursor-zoom-in" style={{ imageRendering: 'pixelated' }} onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} title="点击放大预览" />
                 ) : (
                     <span className="text-gray-500 text-center">点击或拖放上传</span>
                 )}
@@ -445,7 +457,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                 onClick={() => !apiLock.isApiLocked && referenceFileInputRef.current?.click()}
             >
                 {referenceImage ? (
-                    <img src={referenceImage} alt="参考图片预览" className="max-w-full max-h-full object-contain rounded" />
+                    <img src={referenceImage} alt="参考图片预览" className="max-w-full max-h-full object-contain rounded cursor-zoom-in" onClick={(e) => { e.stopPropagation(); setPreviewImage(referenceImage); }} title="点击放大预览" />
                 ) : (
                     <span className="text-gray-500 text-center">点击或拖放上传</span>
                 )}
@@ -487,13 +499,14 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
               />
           )}
         </div>
-        <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} />
+        <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage} />
       </div>
     </div>
   );
 
   const renderGenerateStep = () => (
     <div>
+        {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
         <div className="text-center mb-8">
             <h2 className="text-3xl text-yellow-400 font-press-start">第二步：生成游戏资源</h2>
             <p className="text-lg text-gray-300 mt-2">使用你的基础角色为 RPG Maker MZ 生成配套资源。</p>
@@ -505,7 +518,14 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             <div className="lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
                 <h3 className="text-2xl text-yellow-400 mb-4 font-press-start text-center">基础角色</h3>
                 <div className='flex-grow'>
-                    <img src={baseImage!} alt="基础角色" className="p-2 bg-checkered-pattern rounded-md" style={{ imageRendering: 'pixelated' }} />
+                    <img 
+                      src={baseImage!} 
+                      alt="基础角色" 
+                      className="p-2 bg-checkered-pattern rounded-md cursor-zoom-in transition-transform hover:scale-105" 
+                      style={{ imageRendering: 'pixelated' }} 
+                      onClick={() => setPreviewImage(baseImage)}
+                      title="点击放大预览"
+                    />
                     <AdjustmentInput
                         adjustmentPrompt={adjustmentPrompt}
                         setAdjustmentPrompt={setAdjustmentPrompt}
@@ -514,7 +534,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                         disabled={apiLock.isApiLocked}
                     />
                 </div>
-                <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} />
+                <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage} />
             </div>
              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
                 

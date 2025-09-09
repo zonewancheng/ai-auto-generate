@@ -6,6 +6,7 @@ import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
 import LoadingSpinner from './LoadingSpinner';
+import ImagePreviewModal from './ImagePreviewModal';
 
 type Mode = 'generate' | 'fromAssets' | 'restyle';
 type AssetType = 'character' | 'monster' | 'pet' | 'item' | 'equipment';
@@ -86,8 +87,9 @@ const HistoryPanel: React.FC<{
   history: AssetRecord[], 
   onSelect: (item: AssetRecord) => void, 
   onDelete: (id: number) => void,
-  disabled: boolean 
-}> = ({ history, onSelect, onDelete, disabled }) => {
+  disabled: boolean,
+  onImageClick: (url: string) => void,
+}> = ({ history, onSelect, onDelete, disabled, onImageClick }) => {
   const handleDelete = (e: React.MouseEvent, id: number | undefined) => {
     e.stopPropagation();
     if (typeof id === 'number' && window.confirm('你确定要删除这条历史记录吗？')) {
@@ -109,7 +111,13 @@ const HistoryPanel: React.FC<{
                 disabled={disabled}
                 className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <img src={item.imageDataUrl} alt={item.prompt} className="flex-shrink-0 w-12 h-12 object-cover mr-4 bg-checkered-pattern rounded-sm" />
+                <img 
+                  src={item.imageDataUrl} 
+                  alt={item.prompt} 
+                  className="flex-shrink-0 w-12 h-12 object-cover mr-4 bg-checkered-pattern rounded-sm cursor-zoom-in" 
+                  onClick={(e) => { e.stopPropagation(); onImageClick(item.imageDataUrl); }}
+                  title="点击放大预览"
+                />
                 <div className="flex-grow overflow-hidden">
                   <p className="text-gray-200 truncate font-semibold">{item.prompt}</p>
                   <p className="text-sm text-gray-500">{new Date(item.timestamp).toLocaleString()}</p>
@@ -148,6 +156,9 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   // Mode 'restyle' state
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
 
   const loadHistory = useCallback(async () => {
     try {
@@ -309,7 +320,13 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       <div className="min-h-[8rem] bg-gray-900 border-2 border-dashed border-gray-600 rounded-md p-2 flex flex-wrap gap-2 items-center">
         {selectedAssets.map((asset, index) => (
             <div key={`${asset.id}-${index}`} className="relative group">
-                <img src={asset.imageDataUrl} className="w-16 h-16 object-contain bg-checkered-pattern rounded" style={{ imageRendering: 'pixelated' }} />
+                <img 
+                  src={asset.imageDataUrl} 
+                  className="w-16 h-16 object-contain bg-checkered-pattern rounded cursor-zoom-in" 
+                  style={{ imageRendering: 'pixelated' }} 
+                  onClick={() => setPreviewImage(asset.imageDataUrl)}
+                  title="点击放大预览"
+                />
                 <button onClick={() => setSelectedAssets(assets => assets.filter((_, i) => i !== index))} className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100">&times;</button>
             </div>
         ))}
@@ -327,7 +344,7 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. 上传图片</h2>
         <p className="text-gray-300 mb-4 text-lg">上传一张你想修改或重绘风格的图片。</p>
         <div className="w-full h-48 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer" onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}>
-            {uploadedImage ? <img src={uploadedImage} alt="上传预览" className="max-w-full max-h-full object-contain rounded" /> : <span className="text-gray-500 text-center">点击或拖放上传</span>}
+            {uploadedImage ? <img src={uploadedImage} alt="上传预览" className="max-w-full max-h-full object-contain rounded cursor-zoom-in" onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} title="点击放大预览" /> : <span className="text-gray-500 text-center">点击或拖放上传</span>}
         </div>
         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked} />
         <h2 className="text-2xl text-yellow-400 mt-6 mb-2 font-press-start">2. 描述修改</h2>
@@ -339,6 +356,7 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
 
   return (
     <div>
+      {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
       {isModalOpen && <AssetSelectorModal onSelect={(asset) => { setSelectedAssets(prev => [...prev, asset]); setIsModalOpen(false); }} onClose={() => setIsModalOpen(false)} />}
       {renderModeSwitcher()}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -370,7 +388,7 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                 <AdjustmentInput adjustmentPrompt={adjustmentPrompt} setAdjustmentPrompt={setAdjustmentPrompt} handleAdjust={handleAdjust} isAdjusting={isAdjusting} disabled={apiLock.isApiLocked}/>
             )}
           </div>
-          <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} />
+          <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage} />
         </div>
       </div>
     </div>
