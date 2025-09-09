@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GeneratorProps } from './GeneratorTabs';
 import Button from './Button';
-import { AssetRecord, getAssetsByType, generateGamePlan, adjustGamePlan, addAsset } from '../services/geminiService';
+import { AssetRecord, getAssetsByType, generateGamePlan, adjustGamePlan, addAsset, deleteAsset } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 
 declare var JSZip: any;
@@ -99,43 +99,67 @@ const BlueprintDisplay: React.FC<{ blueprint: any }> = ({ blueprint }) => {
     );
 };
 
-const GamePlanHistoryPanel: React.FC<{ history: AssetRecord[], onSelect: (item: AssetRecord) => void, disabled: boolean }> = ({ history, onSelect, disabled }) => (
-  <div className="mt-6 border-t-2 border-gray-700 pt-4">
-    <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
-    {history.length === 0 ? (
-      <p className="text-gray-500">你生成的游戏策划案将显示在此处。</p>
-    ) : (
-      <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
-        {history.map(item => {
-          let title = "游戏策划案";
-          let tagline = item.prompt;
-          try {
-              const data = JSON.parse(item.imageDataUrl!);
-              title = data.gameBlueprint?.title || "未命名游戏";
-              tagline = data.gameBlueprint?.story?.tagline || item.prompt;
-          } catch(e) { /* use defaults */ }
+const GamePlanHistoryPanel: React.FC<{ 
+  history: AssetRecord[], 
+  onSelect: (item: AssetRecord) => void, 
+  onDelete: (id: number) => void,
+  disabled: boolean 
+}> = ({ history, onSelect, onDelete, disabled }) => {
 
-          return (
-            <button 
-              key={item.id} 
-              onClick={() => onSelect(item)} 
-              disabled={disabled}
-              className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="w-12 h-12 flex-shrink-0 bg-gray-700 rounded-sm flex items-center justify-center mr-4">
-                <span className="text-2xl">📜</span>
+  const handleDelete = (e: React.MouseEvent, id: number | undefined) => {
+    e.stopPropagation();
+    if (typeof id === 'number' && window.confirm('你确定要删除这个游戏策划案吗？')) {
+      onDelete(id);
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t-2 border-gray-700 pt-4">
+      <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
+      {history.length === 0 ? (
+        <p className="text-gray-500">你生成的游戏策划案将显示在此处。</p>
+      ) : (
+        <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
+          {history.map(item => {
+            let title = "游戏策划案";
+            let tagline = item.prompt;
+            try {
+                const data = JSON.parse(item.imageDataUrl!);
+                title = data.gameBlueprint?.title || "未命名游戏";
+                tagline = data.gameBlueprint?.story?.tagline || item.prompt;
+            } catch(e) { /* use defaults */ }
+
+            return (
+              <div key={item.id} className="relative group">
+                <button 
+                  onClick={() => onSelect(item)} 
+                  disabled={disabled}
+                  className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="w-12 h-12 flex-shrink-0 bg-gray-700 rounded-sm flex items-center justify-center mr-4">
+                    <span className="text-2xl">📜</span>
+                  </div>
+                  <div className="flex-grow overflow-hidden">
+                    <p className="text-gray-200 font-bold truncate">{title}</p>
+                    <p className="text-sm text-gray-400 truncate">{tagline}</p>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => handleDelete(e, item.id)}
+                  disabled={disabled}
+                  className="absolute top-1/2 right-2 transform -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="删除"
+                >
+                  &#x1F5D1;
+                </button>
               </div>
-              <div className="flex-grow overflow-hidden">
-                <p className="text-gray-200 font-bold truncate">{title}</p>
-                <p className="text-sm text-gray-400 truncate">{tagline}</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    )}
-  </div>
-);
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
@@ -161,6 +185,16 @@ const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
     useEffect(() => {
         loadHistory();
     }, [loadHistory]);
+
+    const handleDeleteAsset = async (id: number) => {
+        if (apiLock.isApiLocked) return;
+        try {
+          await deleteAsset(id);
+          loadHistory();
+        } catch (error) {
+          console.error("Failed to delete asset:", error);
+        }
+      };
     
     const handleSelectHistoryItem = (item: AssetRecord) => {
         if (apiLock.isApiLocked) return;
@@ -246,9 +280,6 @@ const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
         if (!gameBlueprint) return;
         const zip = new JSZip();
 
-        // Add game plan
-        zip.file("game_plan.json", JSON.stringify(gameBlueprint, null, 2));
-        
         // Add readme
         const readmeContent = `
 # AI 生成的 RPG Maker MZ 项目
@@ -257,37 +288,74 @@ const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
 ## 如何使用
 1. 在 RPG Maker MZ 中创建一个新的空白项目。
 2. 打开项目文件夹。
-3. 将此 ZIP 文件中的 'img' 文件夹拖放到你的项目文件夹中，合并/替换文件夹。
+3. 将此 ZIP 文件中的 'img' 和 'data' 文件夹拖放到你的项目文件夹中，合并/替换文件夹。
 4. 打开 'game_plan.json' 查看故事、角色信息和任务详情。
 5. 使用 RPG Maker MZ 编辑器根据游戏策划案构建地图、事件和数据库条目。
 
 祝你游戏制作愉快！
 `;
         zip.file("README_使用说明.md", readmeContent);
+        zip.file("game_plan.json", JSON.stringify(gameBlueprint, null, 2));
+        
+        // --- Create Data Files ---
+        const dataFolder = zip.folder("data");
+        const heroAsset = selectedAssets['主角'];
+        const villainAsset = selectedAssets['反派'];
+        const itemAsset = selectedAssets['关键物品'];
+        const heroActorName = `AI_Hero_${heroAsset?.id || '1'}`;
+        const villainEnemyName = `AI_Villain_${villainAsset?.id || '1'}`;
+        const itemIconName = `AI_Icon_${itemAsset?.id || '1'}`;
 
-        // Add assets
+        const actorsData = [null, {
+            "id": 1, "battlerName": "", "characterIndex": 0, "characterName": heroActorName,
+            "classId": 1, "equips": [1, 1, 2, 3, 0], "faceIndex": 0, "faceName": "",
+            "traits": [], "initialLevel": 1, "maxLevel": 99, 
+            "name": gameBlueprint.actors[0]?.name || "英雄", 
+            "nickname": "", 
+            "note": "", "profile": gameBlueprint.actors[0]?.description || ""
+        }];
+        if (dataFolder) dataFolder.file("Actors.json", JSON.stringify(actorsData, null, 2));
+
+        const enemiesData = [null, {
+            "id": 1, "actions": [{"conditionParam1": 0, "conditionParam2": 0, "conditionType": 0, "rating": 5, "skillId": 1}],
+            "battlerHue": 0, "battlerName": villainEnemyName, "dropItems": [], "exp": 10, "gold": 5,
+            "name": gameBlueprint.enemies[0]?.name || "反派", "note": "",
+            "params": [100, 0, 10, 10, 10, 10, 10, 10] // [HP, MP, ATK, DEF, MAT, MDF, AGI, LUK]
+        }];
+        if (dataFolder) dataFolder.file("Enemies.json", JSON.stringify(enemiesData, null, 2));
+
+        const itemsData = [null, {
+            "id": 1, "animationId": 0, "consumable": true, "damage": {"critical": false, "elementId": 0, "formula": "0", "type": 0, "variance": 20},
+            "description": gameBlueprint.items[0]?.description || "一个重要的物品", "effects": [], "hitType": 0, "iconIndex": 0,
+            "itypeId": 2, // Key Item
+            "name": gameBlueprint.items[0]?.name || "关键物品", "note": "", "occasion": 0, "price": 0,
+            "repeats": 1, "scope": 7, "speed": 0, "successRate": 100, "tpGain": 0
+        }];
+        if (dataFolder) dataFolder.file("Items.json", JSON.stringify(itemsData, null, 2));
+
+        // --- Add Image Assets ---
         const imgFolder = zip.folder("img");
         const assetsToProcess = Object.values(selectedAssets);
 
         for (const asset of assetsToProcess) {
-            if (asset) {
-                const base64Data = asset.imageDataUrl!.split(",")[1];
+            if (asset && asset.imageDataUrl) {
+                const base64Data = asset.imageDataUrl.split(",")[1];
                 let folderName = '';
                 let fileName = '';
 
                 switch (asset.type) {
                     case 'character':
                         folderName = 'characters';
-                        fileName = `AI_Hero_${asset.id}.png`;
+                        fileName = `${heroActorName}.png`;
                         break;
                     case 'monster':
                         folderName = 'sv_actors'; // side-view battler
-                        fileName = `AI_Villain_${asset.id}.png`;
+                        fileName = `${villainEnemyName}.png`;
                         break;
                     case 'item':
                     case 'equipment':
                         folderName = 'icons';
-                        fileName = `AI_Icon_${asset.id}.png`;
+                        fileName = `${itemIconName}.png`;
                         break;
                     default:
                         folderName = 'pictures';
@@ -305,7 +373,9 @@ const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
         link.download = `${gameBlueprint.title.replace(/\s+/g, '_')}_Project.zip`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
     };
 
@@ -373,14 +443,14 @@ const GameAssembler: React.FC<GeneratorProps> = ({ apiLock }) => {
                         </div>
                     )}
                 </div>
-                <GamePlanHistoryPanel history={history} onSelect={handleSelectHistoryItem} disabled={apiLock.isApiLocked} />
+                <GamePlanHistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} />
             </div>
 
             {/* Right Panel: Display */}
             <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl text-yellow-400 font-press-start">游戏策划案</h2>
-                    {gameBlueprint && <Button onClick={handleDownload} disabled={apiLock.isApiLocked}>下载资源 (.zip)</Button>}
+                    {gameBlueprint && <Button onClick={handleDownload} disabled={apiLock.isApiLocked}>下载项目 (.zip)</Button>}
                 </div>
 
                 <div className="w-full min-h-[60vh] bg-gray-900/50 rounded-md p-4 flex items-center justify-center overflow-y-auto scrollbar-hide">

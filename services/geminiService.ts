@@ -695,3 +695,39 @@ export const getAssetsByType = async (type: string): Promise<AssetRecord[]> => {
         };
     });
 };
+
+export const getAllAssets = async (): Promise<AssetRecord[]> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+            // Sort by timestamp descending to have a predictable order (newest first)
+            resolve(request.result.sort((a, b) => b.timestamp - a.timestamp));
+        };
+        request.onerror = () => {
+            console.error('Error getting all assets:', request.error);
+            reject('获取所有资源时出错');
+        };
+    });
+};
+
+export const deleteAsset = async (id: number): Promise<void> => {
+  if (!id) return;
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      resolve();
+    };
+    request.onerror = () => {
+      console.error('Error deleting asset:', request.error);
+      reject('删除资源时出错');
+    };
+  });
+};

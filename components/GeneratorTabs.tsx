@@ -48,7 +48,7 @@ const TABS: TabConfig[] = [
     { id: 'chest', label: '宝箱', icon: <ChestIcon />, component: TreasureChestGenerator },
     { id: 'equipment', label: '装备图标', icon: <EquipmentIcon />, component: EquipmentGenerator },
     { id: 'item', label: '物品图标', icon: <ItemIcon />, component: ItemGenerator },
-    { id: 'game', label: 'AI 游戏策划', icon: <GameIcon />, component: GameAssembler },
+    { id: 'game', label: '游戏策划', icon: <GameIcon />, component: GameAssembler },
 ];
 
 const GeneratorTabs: React.FC = () => {

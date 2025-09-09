@@ -8,6 +8,7 @@ import {
   adjustGeneratedImage,
   addAsset,
   getAssetsByType,
+  deleteAsset,
   AssetRecord,
 } from '../services/geminiService';
 import Button from './Button';
@@ -34,31 +35,55 @@ const placeholderExamples = [
     "一位未来的半机械人战士，拥有发光的蓝色眼睛和一把等离子步枪。",
 ];
 
-const HistoryPanel: React.FC<{ history: AssetRecord[], onSelect: (item: AssetRecord) => void, disabled: boolean }> = ({ history, onSelect, disabled }) => (
-  <div className="mt-6 border-t-2 border-gray-700 pt-4">
-    <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
-    {history.length === 0 ? (
-      <p className="text-gray-500">你生成的角色将显示在此处。</p>
-    ) : (
-      <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
-        {history.map(item => (
-          <button 
-            key={item.id} 
-            onClick={() => onSelect(item)} 
-            disabled={disabled}
-            className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <img src={item.imageDataUrl} alt={item.prompt} className="w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm" style={{ imageRendering: 'pixelated' }} />
-            <div className="flex-grow overflow-hidden">
-              <p className="text-gray-200 truncate">{item.prompt}</p>
-              <p className="text-sm text-gray-500">{new Date(item.timestamp).toLocaleString()}</p>
+const HistoryPanel: React.FC<{ 
+  history: AssetRecord[], 
+  onSelect: (item: AssetRecord) => void, 
+  onDelete: (id: number) => void,
+  disabled: boolean 
+}> = ({ history, onSelect, onDelete, disabled }) => {
+
+  const handleDelete = (e: React.MouseEvent, id: number | undefined) => {
+    e.stopPropagation(); // Prevent onSelect from firing
+    if (typeof id === 'number' && window.confirm('你确定要删除这条历史记录吗？')) {
+      onDelete(id);
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t-2 border-gray-700 pt-4">
+      <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
+      {history.length === 0 ? (
+        <p className="text-gray-500">你生成的角色将显示在此处。</p>
+      ) : (
+        <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
+          {history.map(item => (
+            <div key={item.id} className="relative group">
+              <button
+                onClick={() => onSelect(item)}
+                disabled={disabled}
+                className="flex items-center w-full text-left p-2 mb-2 bg-gray-800 rounded-md cursor-pointer hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <img src={item.imageDataUrl} alt={item.prompt} className="flex-shrink-0 w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm" style={{ imageRendering: 'pixelated' }} />
+                <div className="flex-grow overflow-hidden">
+                  <p className="text-gray-200 truncate font-semibold">{item.prompt}</p>
+                  <p className="text-sm text-gray-500">{new Date(item.timestamp).toLocaleString()}</p>
+                </div>
+              </button>
+              <button
+                onClick={(e) => handleDelete(e, item.id)}
+                disabled={disabled}
+                className="absolute top-1/2 right-2 transform -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="删除"
+              >
+                &#x1F5D1;
+              </button>
             </div>
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-);
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
@@ -88,6 +113,17 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  const handleDeleteAsset = async (id: number) => {
+    if (apiLock.isApiLocked) return;
+    try {
+      await deleteAsset(id);
+      loadHistory();
+    } catch (error) {
+      console.error("Failed to delete asset:", error);
+      // Optionally show an error message to the user
+    }
+  };
 
   const handleGenerateBaseCharacter = useCallback(async () => {
     if (!prompt || apiLock.isApiLocked) return;
@@ -264,7 +300,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
               />
           )}
         </div>
-        <HistoryPanel history={history} onSelect={handleSelectHistoryItem} disabled={apiLock.isApiLocked} />
+        <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} />
       </div>
     </div>
   );
@@ -279,10 +315,10 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             </Button>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col items-center justify-center">
+            <div className="lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
                 <h3 className="text-2xl text-yellow-400 mb-4 font-press-start text-center">基础角色</h3>
                 <img src={baseImage!} alt="基础角色" className="p-2 bg-checkered-pattern rounded-md" style={{ imageRendering: 'pixelated' }} />
-                <HistoryPanel history={history} onSelect={handleSelectHistoryItem} disabled={apiLock.isApiLocked} />
+                <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} />
             </div>
              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
                 
