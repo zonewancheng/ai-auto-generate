@@ -1,6 +1,8 @@
 
 # AI RPG 资源工厂
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Foospace%2Fgemini-rpg-maker-factory&env=API_KEY&envDescription=Enter%20your%20Google%20Gemini%20API%20key.&envLink=https://aistudio.google.com/app/apikey) [![Deploy to Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run?git_repo=https%3A%2F%2Fgithub.com%2Foospace%2Fgemini-rpg-maker-factory)
+
 欢迎来到 **AI RPG 资源工厂**！这是一个专为独立游戏开发者，特别是 RPG Maker 用户打造的强大AI助手。无论你是需要灵感、快速生成原型素材，还是想为你的项目添加独特的视觉效果，这个工具都能帮你实现。
 
 只需用简单的文字描述你的想法，强大的 Gemini AI 模型就能为你生成从角色像素图、怪物战斗图到完整的游戏策划案等各种资源，大大加速你的游戏开发进程。
@@ -46,6 +48,8 @@
 
 1.  **设置 API 密钥：** 您有两种方式提供 Gemini API 密钥：
     *   **环境变量 (推荐):** 如果您在自己的环境中部署此应用，建议设置一个名为 `API_KEY` 的环境变量。
+        *   **Vercel 部署:** 点击上方的 "Deploy with Vercel" 按钮，部署流程中会提示您输入 API 密钥。
+        *   **Google Cloud 部署:** 点击上方的 "Deploy to Google Cloud" 按钮。部署完成后，您需要进入 Cloud Run 服务，在“修订版本”标签页中编辑新部署的修订版本，然后在“变量与密钥”部分添加一个名为 `API_KEY` 的环境变量，值为您的 Gemini API 密钥。
     *   **应用内设置:** 如果未检测到环境变量，应用会提示您输入密钥。点击右上角的设置图标 ⚙️ 也可以随时输入或修改。在应用内设置的密钥会保存在您的浏览器本地，并**优先于**环境变量。
     
     您可以从 [Google AI Studio](https://aistudio.google.com/app/apikey) 获取 API 密钥。 **重要提示：** 本应用的核心图像生成功能需要使用与已启用结算功能的 Google Cloud 项目关联的 API 密钥。仅使用 AI Studio 的免费密钥将**无法**生成图像。
