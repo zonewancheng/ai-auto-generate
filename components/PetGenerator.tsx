@@ -1,6 +1,5 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
-import { generatePetSprite, adjustGeneratedImage, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
+import { generatePetSprite, adjustGeneratedImage, removeImageBackground, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
 import Button from './Button';
 import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
@@ -72,6 +71,7 @@ const PetGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [error, setError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [history, setHistory] = useState<AssetRecord[]>([]);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -140,6 +140,27 @@ const PetGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     }
   }, [adjustmentPrompt, generatedImage, prompt, apiLock, loadHistory]);
 
+    const handleRemoveBackground = useCallback(async () => {
+        if (!generatedImage || apiLock.isApiLocked) return;
+
+        apiLock.lockApi();
+        setIsRemovingBg(true);
+        setError(null);
+
+        try {
+            const newImageDataUrl = await removeImageBackground(generatedImage);
+            setGeneratedImage(newImageDataUrl);
+            await addAsset({ type: 'pet', prompt: `已移除背景 (原始: ${prompt})`, imageDataUrl: newImageDataUrl });
+            loadHistory();
+        } catch (err) {
+            setError(err instanceof Error ? `去背失败: ${err.message}` : '发生未知错误。');
+            console.error(err);
+        } finally {
+            setIsRemovingBg(false);
+            apiLock.unlockApi();
+        }
+    }, [generatedImage, prompt, apiLock, loadHistory]);
+
   const handleSelectExample = (example: string) => {
     setPrompt(example);
   };
@@ -203,6 +224,8 @@ const PetGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             imageAlt="生成的宠物雪碧图"
             imageContainerClassName="bg-checkered-pattern p-2 border-2 border-gray-600 rounded-md"
             imageClassName="w-[144px] h-[192px]"
+            onRemoveBackground={handleRemoveBackground}
+            isRemovingBackground={isRemovingBg}
           />
           {generatedImage && !isLoading && (
               <AdjustmentInput 

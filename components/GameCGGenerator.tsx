@@ -1,6 +1,5 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { generateGameConceptArt, adjustGeneratedImage, addAsset, getAssetsByType, deleteAsset, AssetRecord, generateConceptArtFromAssets } from '../services/geminiService';
+import { generateGameConceptArt, adjustGeneratedImage, removeImageBackground, addAsset, getAssetsByType, deleteAsset, AssetRecord, generateConceptArtFromAssets } from '../services/geminiService';
 import Button from './Button';
 import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
@@ -158,6 +157,7 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
 
 
   const loadHistory = useCallback(async () => {
@@ -269,6 +269,27 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       apiLock.unlockApi();
     }
   }, [adjustmentPrompt, generatedImage, prompt, apiLock, loadHistory]);
+
+    const handleRemoveBackground = useCallback(async () => {
+        if (!generatedImage || apiLock.isApiLocked) return;
+
+        apiLock.lockApi();
+        setIsRemovingBg(true);
+        setError(null);
+
+        try {
+            const newImageDataUrl = await removeImageBackground(generatedImage);
+            setGeneratedImage(newImageDataUrl);
+            await addAsset({ type: 'game-concept-art', prompt: `已移除背景 (原始: ${prompt})`, imageDataUrl: newImageDataUrl });
+            loadHistory();
+        } catch (err) {
+            setError(err instanceof Error ? `去背失败: ${err.message}` : '发生未知错误。');
+            console.error(err);
+        } finally {
+            setIsRemovingBg(false);
+            apiLock.unlockApi();
+        }
+    }, [generatedImage, prompt, apiLock, loadHistory]);
 
   const handleSelectExample = (example: string) => {
     setPrompt(example);
@@ -383,6 +404,8 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
               imageAlt="生成游戏原画"
               imageContainerClassName="bg-checkered-pattern p-2 border-2 border-gray-600 rounded-md w-full"
               imageClassName="w-full h-auto object-contain max-h-[350px]"
+              onRemoveBackground={handleRemoveBackground}
+              isRemovingBackground={isRemovingBg}
             />
             {generatedImage && !isLoading && (
                 <AdjustmentInput adjustmentPrompt={adjustmentPrompt} setAdjustmentPrompt={setAdjustmentPrompt} handleAdjust={handleAdjust} isAdjusting={isAdjusting} disabled={apiLock.isApiLocked}/>

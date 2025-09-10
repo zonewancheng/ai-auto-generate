@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   generateBaseCharacter, 
@@ -7,6 +6,7 @@ import {
   generateFacesetFromImage,
   adjustGeneratedImage,
   optimizeCharacterImage,
+  removeImageBackground,
   addAsset,
   getAssetsByType,
   deleteAsset,
@@ -131,6 +131,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isRemovingBgFor, setIsRemovingBgFor] = useState<string | null>(null);
 
 
   const loadHistory = useCallback(async () => {
@@ -287,6 +288,37 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         apiLock.unlockApi();
     }
   }, [baseImage, apiLock]);
+
+   const handleRemoveBg = useCallback(async (
+      assetIdentifier: 'base' | AssetType,
+      currentImage: string | null,
+      imageSetter: (url: string) => void,
+      errorSetter: (err: string | null) => void
+    ) => {
+      if (!currentImage || apiLock.isApiLocked) return;
+      
+      apiLock.lockApi();
+      setIsRemovingBgFor(assetIdentifier);
+      errorSetter(null);
+
+      try {
+        const newImageDataUrl = await removeImageBackground(currentImage);
+        imageSetter(newImageDataUrl);
+        if (assetIdentifier === 'base') {
+          const newPrompt = `已移除背景 (原始: ${currentBasePrompt})`;
+          setCurrentBasePrompt(newPrompt);
+          await addAsset({ type: 'character', prompt: newPrompt, imageDataUrl: newImageDataUrl });
+          loadHistory();
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? `去背失败: ${err.message}` : '发生未知错误。';
+        errorSetter(errorMessage);
+        console.error(err);
+      } finally {
+        setIsRemovingBgFor(null);
+        apiLock.unlockApi();
+      }
+    }, [apiLock, currentBasePrompt, loadHistory]);
 
   const handleStartOver = () => {
     setStep('describe');
@@ -488,6 +520,8 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             }
             downloadFileName="base_character.png"
             imageAlt="生成的角色"
+            onRemoveBackground={() => handleRemoveBg('base', baseImage, setBaseImage, (err) => setBaseError(err))}
+            isRemovingBackground={isRemovingBgFor === 'base'}
           />
           {baseImage && !isGeneratingBase && (
               <AdjustmentInput
@@ -551,6 +585,13 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                             downloadFileName="walking_sprite.png"
                             imageAlt="生成的行走图"
                             imageClassName="w-[144px] h-[192px]"
+                            onRemoveBackground={() => handleRemoveBg(
+                                'walking', 
+                                walkingSprite.image, 
+                                (url) => setWalkingSprite(s => ({ ...s, image: url, error: null })), 
+                                (err) => setWalkingSprite(s => ({ ...s, error: err }))
+                            )}
+                            isRemovingBackground={isRemovingBgFor === 'walking'}
                          />
                     </div>
                     <Button onClick={() => handleGenerateAsset('walking')} disabled={walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading || apiLock.isApiLocked} className="mt-4 w-full">
@@ -570,6 +611,13 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                             placeholder={<div className="text-center text-gray-500 p-4">点击下方生成侧视图战斗图。</div>}
                             downloadFileName="battler.png"
                             imageAlt="生成的战斗图"
+                            onRemoveBackground={() => handleRemoveBg(
+                                'battler', 
+                                battlerSprite.image, 
+                                (url) => setBattlerSprite(s => ({ ...s, image: url, error: null })), 
+                                (err) => setBattlerSprite(s => ({ ...s, error: err }))
+                            )}
+                            isRemovingBackground={isRemovingBgFor === 'battler'}
                          />
                     </div>
                     <Button onClick={() => handleGenerateAsset('battler')} disabled={walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading || apiLock.isApiLocked} className="mt-4 w-full">
@@ -590,6 +638,13 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                             downloadFileName="faceset.png"
                             imageAlt="生成的脸图"
                             imageClassName="w-[144px] h-[144px]"
+                            onRemoveBackground={() => handleRemoveBg(
+                                'faceset', 
+                                faceSprite.image, 
+                                (url) => setFaceSprite(s => ({ ...s, image: url, error: null })), 
+                                (err) => setFaceSprite(s => ({ ...s, error: err }))
+                            )}
+                            isRemovingBackground={isRemovingBgFor === 'faceset'}
                          />
                     </div>
                     <Button onClick={() => handleGenerateAsset('faceset')} disabled={walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading || apiLock.isApiLocked} className="mt-4 w-full">

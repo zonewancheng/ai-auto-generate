@@ -1,6 +1,5 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
-import { generateTreasureChest, adjustGeneratedImage, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
+import { generateTreasureChest, adjustGeneratedImage, removeImageBackground, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
 import Button from './Button';
 import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
@@ -71,6 +70,7 @@ const TreasureChestGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [error, setError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [history, setHistory] = useState<AssetRecord[]>([]);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -139,6 +139,27 @@ const TreasureChestGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     }
   }, [adjustmentPrompt, generatedImage, prompt, apiLock, loadHistory]);
 
+    const handleRemoveBackground = useCallback(async () => {
+        if (!generatedImage || apiLock.isApiLocked) return;
+
+        apiLock.lockApi();
+        setIsRemovingBg(true);
+        setError(null);
+
+        try {
+            const newImageDataUrl = await removeImageBackground(generatedImage);
+            setGeneratedImage(newImageDataUrl);
+            await addAsset({ type: 'chest', prompt: `已移除背景 (原始: ${prompt})`, imageDataUrl: newImageDataUrl });
+            loadHistory();
+        } catch (err) {
+            setError(err instanceof Error ? `去背失败: ${err.message}` : '发生未知错误。');
+            console.error(err);
+        } finally {
+            setIsRemovingBg(false);
+            apiLock.unlockApi();
+        }
+    }, [generatedImage, prompt, apiLock, loadHistory]);
+
   const handleSelectExample = (example: string) => {
     setPrompt(example);
   };
@@ -202,6 +223,8 @@ const TreasureChestGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             imageAlt="生成的宝箱雪碧图"
             imageContainerClassName="bg-checkered-pattern p-2 border-2 border-gray-600 rounded-md w-full"
             imageClassName="w-auto h-auto object-contain max-h-[100px]"
+            onRemoveBackground={handleRemoveBackground}
+            isRemovingBackground={isRemovingBg}
           />
           {generatedImage && !isLoading && (
               <AdjustmentInput 

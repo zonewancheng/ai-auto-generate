@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import Button from './Button';
@@ -14,6 +13,8 @@ interface SpriteDisplayProps {
   imageAlt: string;
   imageContainerClassName?: string;
   imageClassName?: string;
+  onRemoveBackground?: () => void;
+  isRemovingBackground?: boolean;
 }
 
 const SpriteDisplay: React.FC<SpriteDisplayProps> = ({ 
@@ -26,6 +27,8 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
   imageAlt,
   imageContainerClassName = 'bg-checkered-pattern p-4 border-2 border-gray-600 rounded-md',
   imageClassName = '',
+  onRemoveBackground,
+  isRemovingBackground,
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -74,13 +77,24 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
               />
             </div>
             <p className="text-gray-300 mt-4 text-center">右键点击并“图像另存为...”来下载。</p>
-            <a
-              href={generatedImage}
-              download={downloadFileName}
-              className="mt-4 inline-block w-full max-w-xs"
-            >
-              <Button className="w-full">下载 PNG</Button>
-            </a>
+            <div className="mt-2 w-full max-w-xs space-y-2">
+              <a
+                href={generatedImage}
+                download={downloadFileName}
+                className="block"
+              >
+                <Button className="w-full">下载 PNG</Button>
+              </a>
+              {onRemoveBackground && (
+                 <Button 
+                    onClick={onRemoveBackground} 
+                    disabled={isRemovingBackground || isLoading}
+                    className="w-full bg-teal-600 border-teal-800 hover:bg-teal-500 hover:border-teal-700 active:bg-teal-700 active:border-teal-900"
+                  >
+                    {isRemovingBackground ? '处理中...' : '一键去背'}
+                  </Button>
+              )}
+            </div>
           </div>
         </>
       );

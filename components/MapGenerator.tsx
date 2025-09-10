@@ -1,6 +1,5 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { generateTileset, restyleMapImage, adjustGeneratedImage, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
+import { generateTileset, restyleMapImage, adjustGeneratedImage, removeImageBackground, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
 import Button from './Button';
 import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
@@ -86,6 +85,7 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [history, setHistory] = useState<AssetRecord[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -155,6 +155,27 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       apiLock.unlockApi();
     }
   }, [adjustmentPrompt, generatedImage, prompt, apiLock, loadHistory]);
+
+    const handleRemoveBackground = useCallback(async () => {
+        if (!generatedImage || apiLock.isApiLocked) return;
+
+        apiLock.lockApi();
+        setIsRemovingBg(true);
+        setError(null);
+
+        try {
+            const newImageDataUrl = await removeImageBackground(generatedImage);
+            setGeneratedImage(newImageDataUrl);
+            await addAsset({ type: 'map', prompt: `已移除背景 (原始: ${prompt})`, imageDataUrl: newImageDataUrl });
+            loadHistory();
+        } catch (err) {
+            setError(err instanceof Error ? `去背失败: ${err.message}` : '发生未知错误。');
+            console.error(err);
+        } finally {
+            setIsRemovingBg(false);
+            apiLock.unlockApi();
+        }
+    }, [generatedImage, prompt, apiLock, loadHistory]);
 
   const handleRestyle = useCallback(async () => {
     if (!uploadedImage || apiLock.isApiLocked) return;
@@ -327,6 +348,8 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
               imageAlt="生成的地图或图块集"
               imageContainerClassName="bg-checkered-pattern p-2 border-2 border-gray-600 rounded-md w-full"
               imageClassName="w-full h-auto object-contain max-h-[350px]"
+              onRemoveBackground={handleRemoveBackground}
+              isRemovingBackground={isRemovingBg}
             />
             {generatedImage && !isLoading && mode === 'generate' && (
                 <AdjustmentInput 

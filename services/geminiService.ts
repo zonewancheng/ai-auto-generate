@@ -125,6 +125,20 @@ User's adjustment request: "${adjustmentPrompt}".
     return generateAssetFromImage(base64ImageDataUrl, masterPrompt);
 };
 
+export const removeImageBackground = async (base64ImageDataUrl: string): Promise<string> => {
+    const masterPrompt = `
+You are an expert image editor. Your task is to perfectly remove the background from the provided image, leaving only the main subject(s).
+
+**CRITICAL INSTRUCTIONS:**
+1.  **Transparent Background:** The output MUST be a PNG image with a transparent background.
+2.  **Preserve Subject:** Do not alter, crop, or add to the subject(s) in any way.
+3.  **Preserve Dimensions:** The output image MUST have the exact same dimensions as the input image.
+4.  **No Text:** The output must contain no text, watermarks, or other artifacts.
+`;
+    return generateAssetFromImage(base64ImageDataUrl, masterPrompt);
+};
+
+
 export const optimizeCharacterImage = async (
   base64ImageDataUrl: string,
   userPrompt: string,
