@@ -43,6 +43,9 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave }) =>
           <p className="text-gray-300 text-lg">
             未检测到 API 密钥。您可以通过配置环境变量或在下方输入框中提供密钥来使用此应用。
           </p>
+          <div className="bg-red-900/50 border border-red-700 text-red-300 p-3 rounded-md text-sm">
+            <p><strong>重要提示：</strong>本应用的图像生成功能需要使用与**已启用结算功能的 Google Cloud 项目**关联的 API 密钥。仅使用 AI Studio 的免费密钥将无法生成图像。</p>
+          </div>
           <input
             type="password"
             value={apiKey}

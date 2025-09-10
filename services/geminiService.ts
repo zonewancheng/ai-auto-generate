@@ -21,6 +21,12 @@ const handleApiError = (error: unknown): never => {
         if (error.message.includes("Gemini API 密钥未设置")) {
             throw error;
         }
+
+        // 检查是否为关于需要付费账户的特定 Imagen API 错误
+        if (error.message.includes("Imagen API is only accessible to billed users")) {
+            throw new Error("您的 API 密钥无权访问图像生成功能。这通常需要一个启用了结算功能的 Google Cloud 项目。请检查您的 API 密钥设置。");
+        }
+
         try {
             // The error message from the SDK might be a JSON string.
             const parsedError = JSON.parse(error.message);
