@@ -40,7 +40,7 @@ export const generateBaseCharacter = async (userPrompt: string): Promise<string>
   const masterPrompt = `
 Generate a single, high-quality pixel art character. The character is: "${userPrompt}".
 The character should be full-body, standing still, and facing directly forward in a neutral A-pose.
-The background must be completely transparent.
+CRITICAL RULE: The background MUST be 100% transparent (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 The style should be vibrant 16-bit JRPG pixel art.
 Do not include any text, watermarks, or other elements.
 The character should be centered in the frame.
@@ -90,7 +90,8 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
         });
 
         const candidate = response.candidates?.[0];
-        const imagePart = candidate?.content?.parts.find(part => part.inlineData);
+        const parts = candidate?.content?.parts || [];
+        const imagePart = parts.find(part => part.inlineData);
 
         if (imagePart?.inlineData?.data) {
             return `data:image/png;base64,${imagePart.inlineData.data}`;
@@ -102,7 +103,7 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
                     .join(', ');
                 throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
             }
-            const textPart = candidate?.content?.parts.find(part => part.text);
+            const textPart = parts.find(part => part.text);
             const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
             throw new Error(refusalMessage);
         }
@@ -118,9 +119,10 @@ User's adjustment request: "${adjustmentPrompt}".
 
 **CRITICAL INSTRUCTIONS:**
 1.  **Preserve Core Elements:** Maintain the original image's composition, character pose, style (pixel art), and overall feel.
-2.  **Preserve Technical Specs:** The output image MUST have the exact same dimensions and transparent background as the input image.
+2.  **Preserve Technical Specs:** The output image MUST have the exact same dimensions as the input image.
 3.  **Apply Change:** Only apply the specific change requested by the user. Do not add or change anything else.
 4.  **No Text:** The output must be a single PNG image with no text, watermarks, or artifacts.
+5.  **Transparent Background:** The background MUST be 100% transparent (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 `;
     return generateAssetFromImage(base64ImageDataUrl, masterPrompt);
 };
@@ -130,7 +132,7 @@ export const removeImageBackground = async (base64ImageDataUrl: string): Promise
 You are an expert image editor. Your task is to perfectly remove the background from the provided image, leaving only the main subject(s).
 
 **CRITICAL INSTRUCTIONS:**
-1.  **Transparent Background:** The output MUST be a PNG image with a transparent background.
+1.  **Transparent Background:** The output MUST be a PNG with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 2.  **Preserve Subject:** Do not alter, crop, or add to the subject(s) in any way.
 3.  **Preserve Dimensions:** The output image MUST have the exact same dimensions as the input image.
 4.  **No Text:** The output must contain no text, watermarks, or other artifacts.
@@ -160,7 +162,7 @@ User's request: "${userPrompt}".
 1.  **Preserve Dimensions:** The output image MUST have the exact same dimensions as the FIRST input image. This is the most important rule. Do not change the width or height.
 2.  **Preserve Core Design:** Maintain the original character's pose and fundamental design from the FIRST image.
 3.  **Enhance Quality:** Improve the shading, clean up messy pixels, and refine details to make it look like professional 16-bit JRPG pixel art.
-4.  **Transparent Background:** The output MUST have a transparent background, matching the input.
+4.  **Transparent Background:** The output MUST have a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 5.  **No Text:** The output must be a single PNG image with no text, watermarks, or artifacts.
 `;
 
@@ -192,7 +194,8 @@ User's request: "${userPrompt}".
         });
 
         const candidate = response.candidates?.[0];
-        const imagePart = candidate?.content?.parts.find(part => part.inlineData);
+        const responseParts = candidate?.content?.parts || [];
+        const imagePart = responseParts.find(part => part.inlineData);
         if (imagePart?.inlineData?.data) {
             return `data:image/png;base64,${imagePart.inlineData.data}`;
         } else {
@@ -203,7 +206,7 @@ User's request: "${userPrompt}".
                     .join(', ');
                 throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
             }
-            const textPart = candidate?.content?.parts.find(part => part.text);
+            const textPart = responseParts.find(part => part.text);
             const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
             throw new Error(refusalMessage);
         }
@@ -215,7 +218,7 @@ User's request: "${userPrompt}".
 export const generateWalkingSpriteFromImage = async (base64ImageDataUrl: string): Promise<string> => {
     const prompt = `
 Using the provided character image as a reference, generate a complete RPG Maker MZ walking animation sprite sheet.
-- The sprite sheet must be a single PNG image with a transparent background.
+CRITICAL RULE: The sprite sheet MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The grid must be exactly 3 columns by 4 rows.
 - Each frame must be 48x48 pixels, making the total image size 144x192 pixels.
 - Row 1: Character walking down.
@@ -231,9 +234,9 @@ Using the provided character image as a reference, generate a complete RPG Maker
 export const generateBattlerFromImage = async (base64ImageDataUrl: string): Promise<string> => {
     const prompt = `
 Using the provided character image as a reference, generate a single, static side-view battler sprite for RPG Maker MZ.
+CRITICAL RULE: The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The character should be in a dynamic, ready-for-battle pose, facing left.
 - The style must be high-quality pixel art that matches the reference image.
-- The output should be a single PNG image with a transparent background.
 - Ensure the sprite is larger and more detailed than a standard walking sprite.
 `;
     return generateAssetFromImage(base64ImageDataUrl, prompt);
@@ -242,9 +245,9 @@ Using the provided character image as a reference, generate a single, static sid
 export const generateFacesetFromImage = async (base64ImageDataUrl: string): Promise<string> => {
     const prompt = `
 Using the provided character image as a reference, generate a single character portrait (faceset) for RPG Maker MZ.
+CRITICAL RULE: The final image must be exactly 144x144 pixels with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The image must focus on the character's head and shoulders with a neutral expression.
 - The style must be high-quality pixel art matching the reference.
-- The final image must be exactly 144 pixels wide by 144 pixels high with a transparent background.
 `;
     return generateAssetFromImage(base64ImageDataUrl, prompt);
 };
@@ -263,7 +266,7 @@ The theme of the tileset is: "${userPrompt}".
 - The output must be a single PNG image.
 - The image must be organized as a grid of 48x48 pixel tiles. A good size would be 384x384 pixels (an 8x8 grid of tiles).
 - The tileset must include a variety of ground textures (e.g., grass, dirt, sand, water), and decorative elements like flowers, rocks, trees, and path borders relevant to the theme.
-- Include some tiles with transparent backgrounds for objects that can be placed on top of other tiles (like trees or chests).
+- For objects meant to be placed on other tiles (like trees, chests), the background MUST be fully transparent (alpha channel 0). Do not use a checkered or mosaic pattern to represent transparency. For ground tiles, a solid background is expected.
 - Do not include any characters, UI, text, or watermarks.
   `;
 
@@ -315,7 +318,7 @@ User's request: "${userPrompt}".
 
 **CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE:**
 1.  **NO TEXT:** The final image must contain absolutely no text, letters, numbers, watermarks, or any other characters. It must be a pure graphical asset.
-2.  **FORMAT:** The output MUST be a single PNG image with a completely transparent background.
+2.  **FORMAT:** The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 3.  **LAYOUT:** The sprite sheet must contain exactly 5 animation frames. These frames must be arranged horizontally in a single row.
 4.  **DIMENSIONS:** Each individual frame must be exactly 192 pixels wide by 192 pixels high.
 5.  **TOTAL SIZE:** The final image dimensions must be exactly 960 pixels wide by 192 pixels high (5 frames × 192px width).
@@ -355,7 +358,7 @@ The chest's appearance is: "${userPrompt}".
 **CRITICAL STYLE REQUIREMENT:** The style must be high-quality 16-bit pixel art, matching the aesthetic of classic JRPGs.
 
 **Technical Specifications:**
-- The output MUST be a single PNG image with a transparent background.
+- **TRANSPARENCY:** The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The sprite sheet must contain a sequence of 3 animation frames arranged horizontally in a single row.
 - The animation sequence should be: 1. Chest Closed, 2. Chest Opening, 3. Chest Fully Open.
 - Each frame should be visually distinct to show the opening process.
@@ -395,7 +398,7 @@ The item is: "${userPrompt}".
 **CRITICAL STYLE REQUIREMENT:** The style must be vibrant, detailed 16-bit pixel art. The icon should be clear and easily recognizable.
 
 **Technical Specifications:**
-- The output MUST be a single PNG image with a transparent background.
+- **TRANSPARENCY:** The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The final image dimensions must be exactly 48 pixels wide by 48 pixels high.
 - The item should be centered and fill the 48x48 frame appropriately.
 - Do not include any text, numbers, watermarks, or borders on the image itself.
@@ -433,7 +436,7 @@ The equipment is: "${userPrompt}".
 **CRITICAL STYLE REQUIREMENT:** The style must be vibrant, detailed 16-bit pixel art. The icon should be clear and easily recognizable.
 
 **Technical Specifications:**
-- The output MUST be a single PNG image with a transparent background.
+- **TRANSPARENCY:** The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The final image dimensions must be exactly 48 pixels wide by 48 pixels high.
 - The equipment should be centered and fill the 48x48 frame appropriately.
 - Do not include any text, numbers, watermarks, or borders on the image itself.
@@ -473,7 +476,7 @@ The monster is: "${userPrompt}".
 
 **Technical Specifications:**
 - The monster should be in a dynamic, ready-for-battle pose, facing left.
-- The output should be a single PNG image with a transparent background.
+- **TRANSPARENCY:** The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - Ensure the sprite is large and detailed enough to be a prominent enemy on the battle screen.
 - Do not include any text, UI, watermarks, or background elements.
 `;
@@ -509,7 +512,7 @@ The creature is: "${userPrompt}".
 **CRITICAL STYLE REQUIREMENT:** The style must be high-quality 16-bit pixel art, matching the aesthetic of classic JRPGs.
 
 **Technical Specifications:**
-- The sprite sheet must be a single PNG image with a transparent background.
+- **TRANSPARENCY:** The output MUST be a single PNG image with a 100% transparent background (alpha channel). Do NOT draw a checkered, mosaic, or any other pattern to simulate transparency. The output must be a clean PNG with a real transparent background.
 - The grid must be exactly 3 columns by 4 rows.
 - Each frame must be 48x48 pixels, making the total image size 144x192 pixels.
 - Row 1: Creature walking down.
@@ -617,7 +620,8 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
         });
 
         const candidate = response.candidates?.[0];
-        const imagePart = candidate?.content?.parts.find(part => part.inlineData);
+        const responseParts = candidate?.content?.parts || [];
+        const imagePart = responseParts.find(part => part.inlineData);
         if (imagePart?.inlineData?.data) {
             return `data:image/png;base64,${imagePart.inlineData.data}`;
         } else {
@@ -628,7 +632,7 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
                     .join(', ');
                 throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
             }
-            const textPart = candidate?.content?.parts.find(part => part.text);
+            const textPart = responseParts.find(part => part.text);
             const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
             throw new Error(refusalMessage);
         }

@@ -151,6 +151,7 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   // Mode 'fromAssets' state
   const [selectedAssets, setSelectedAssets] = useState<AssetRecord[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const localAssetInputRef = useRef<HTMLInputElement>(null);
 
   // Mode 'restyle' state
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -311,6 +312,35 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     }
   };
 
+  const handleLocalAssetFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageDataUrl = e.target?.result as string;
+            if (imageDataUrl) {
+                const newAsset: AssetRecord = {
+                    id: Date.now() + Math.random(), // Temporary unique ID for React key
+                    type: 'local-asset',
+                    prompt: file.name,
+                    imageDataUrl,
+                    timestamp: Date.now(),
+                };
+                setSelectedAssets(prev => [...prev, newAsset]);
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Reset file input to allow selecting the same file again
+    if (event.target) {
+        event.target.value = "";
+    }
+  };
+
+
   const renderModeSwitcher = () => (
     <div className="flex justify-center bg-gray-800 p-2 rounded-lg mb-8 border-2 border-gray-700">
       <button onClick={() => setMode('generate')} disabled={apiLock.isApiLocked} className={`w-1/3 font-press-start text-base py-3 rounded-md transition-colors ${mode === 'generate' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}>描述生成</button>
@@ -337,7 +367,7 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const renderFromAssetsMode = () => (
     <>
       <h2 className="text-2xl text-yellow-400 mb-2 font-press-start">1. 选择素材</h2>
-      <p className="text-gray-300 mb-4 text-lg">从你的历史记录中选择角色、怪物等，将它们添加到场景中。</p>
+      <p className="text-gray-300 mb-4 text-lg">从你的历史记录中选择角色、怪物等，或从本地上传图片，将它们添加到场景中。</p>
       <div className="min-h-[8rem] bg-gray-900 border-2 border-dashed border-gray-600 rounded-md p-2 flex flex-wrap gap-2 items-center">
         {selectedAssets.map((asset, index) => (
             <div key={`${asset.id}-${index}`} className="relative group">
@@ -346,13 +376,17 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                   className="w-16 h-16 object-contain bg-checkered-pattern rounded cursor-zoom-in" 
                   style={{ imageRendering: 'pixelated' }} 
                   onClick={() => setPreviewImage(asset.imageDataUrl)}
-                  title="点击放大预览"
+                  title={asset.prompt}
                 />
-                <button onClick={() => setSelectedAssets(assets => assets.filter((_, i) => i !== index))} className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100">&times;</button>
+                <button onClick={() => setSelectedAssets(assets => assets.filter((_, i) => i !== index))} className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100" aria-label="移除素材">&times;</button>
             </div>
         ))}
-        <button onClick={() => setIsModalOpen(true)} className="w-16 h-16 bg-gray-700 hover:bg-purple-600 rounded flex items-center justify-center text-4xl text-gray-400 transition-colors">+</button>
+        <button onClick={() => setIsModalOpen(true)} className="w-16 h-16 bg-gray-700 hover:bg-purple-600 rounded flex items-center justify-center text-4xl text-gray-400 transition-colors" title="从历史记录选择">+</button>
+        <button onClick={() => localAssetInputRef.current?.click()} className="w-16 h-16 bg-gray-700 hover:bg-purple-600 rounded flex items-center justify-center text-gray-400 transition-colors" title="从本地上传">
+          <span className="text-2xl">🖥️</span>
+        </button>
       </div>
+      <input type="file" ref={localAssetInputRef} onChange={handleLocalAssetFileChange} accept="image/*" className="hidden" multiple disabled={apiLock.isApiLocked} />
       <h2 className="text-2xl text-yellow-400 mt-6 mb-2 font-press-start">2. 描述场景</h2>
       <p className="text-gray-300 mb-4 text-lg">描述这些素材在做什么，以及场景的环境。</p>
       <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="例如：英雄正在与巨龙战斗，背景是一座火山。" className="w-full h-32 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none" disabled={apiLock.isApiLocked} />
