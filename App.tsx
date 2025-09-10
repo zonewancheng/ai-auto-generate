@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import GeneratorTabs from './components/GeneratorTabs';
 import Footer from './components/Footer';
@@ -7,6 +7,7 @@ import GamePreview from './components/GamePreview';
 import InspirationGeneratorModal from './components/InspirationGeneratorModal';
 import { getAllAssets, generateGamePlan } from './services/geminiService';
 import { AssetRecord } from './services/geminiService';
+import ApiKeyModal from './components/ApiKeyModal';
 
 export interface GamePreviewData {
   blueprint: any;
@@ -28,7 +29,30 @@ const App: React.FC = () => {
   const [inspirationAssets, setInspirationAssets] = useState<InspirationAssets | null>(null);
   const [gameGenerationError, setGameGenerationError] = useState<string | null>(null);
 
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+    const key = localStorage.getItem('gemini_api_key') || process.env.API_KEY;
+    if (key) {
+      setHasApiKey(true);
+    } else {
+      setIsApiKeyModalOpen(true);
+    }
+  }, []);
+
+  const handleSaveApiKey = (key: string) => {
+    localStorage.setItem('gemini_api_key', key);
+    setHasApiKey(true);
+    setIsApiKeyModalOpen(false);
+  };
+
+
   const handleFlashOfInspiration = async () => {
+    if (!hasApiKey) {
+      setIsApiKeyModalOpen(true);
+      return;
+    }
     setIsGeneratingGame(true);
     setGameGenerationError(null);
     setInspirationAssets(null);
@@ -72,6 +96,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => hasApiKey && setIsApiKeyModalOpen(false)}
+        onSave={handleSaveApiKey}
+      />
       {isGeneratingGame && inspirationAssets && (
         <InspirationGeneratorModal 
           heroAsset={inspirationAssets.heroAsset}
@@ -85,7 +114,7 @@ const App: React.FC = () => {
           onClose={() => setIsGamePreviewOpen(false)} 
         />
       )}
-      <Header />
+      <Header onOpenSettings={() => setIsApiKeyModalOpen(true)} />
       <main className="flex-grow container mx-auto p-4 md:p-8">
         <GeneratorTabs onFlashOfInspiration={handleFlashOfInspiration} />
       </main>

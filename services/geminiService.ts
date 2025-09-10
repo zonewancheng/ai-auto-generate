@@ -1,19 +1,26 @@
+
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
-if (!process.env.API_KEY) {
-  // This is a placeholder for development.
-  // In a real environment, the key would be set.
-  // We'll proceed assuming it's configured, as per instructions.
-  console.warn("API_KEY environment variable not set. Using a placeholder.");
-}
+const getAiClient = (): GoogleGenAI => {
+    // 优先级: 1. 用户在UI中设置的密钥 (LocalStorage) 2. 环境变量
+    const apiKey = localStorage.getItem('gemini_api_key') || process.env.API_KEY;
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    if (!apiKey) {
+        throw new Error("Gemini API 密钥未设置。请在设置中输入，或配置环境变量。");
+    }
+
+    return new GoogleGenAI({ apiKey });
+};
+
 
 // --- Helper for Image Generation API Calls ---
 
 const handleApiError = (error: unknown): never => {
     console.error("Error calling Gemini API:", error);
     if (error instanceof Error) {
+        if (error.message.includes("Gemini API 密钥未设置")) {
+            throw error;
+        }
         try {
             // The error message from the SDK might be a JSON string.
             const parsedError = JSON.parse(error.message);
@@ -46,6 +53,7 @@ Do not include any text, watermarks, or other elements.
 The character should be centered in the frame.
   `;
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -70,6 +78,7 @@ The character should be centered in the frame.
 // --- Step 2: Asset Generation from Base Image ---
 
 const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string): Promise<string> => {
+    const ai = getAiClient();
     const pureBase64 = base64ImageDataUrl.split(',')[1];
     if (!pureBase64) {
         throw new Error("提供了无效的 base64 图像数据。");
@@ -185,6 +194,7 @@ User's request: "${userPrompt}".
     parts.push({ text: masterPrompt });
 
     try {
+        const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image-preview',
             contents: { parts },
@@ -271,6 +281,7 @@ The theme of the tileset is: "${userPrompt}".
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -328,6 +339,7 @@ The animation should depict the user's requested effect, progressing logically f
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -368,6 +380,7 @@ The chest's appearance is: "${userPrompt}".
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -405,6 +418,7 @@ The item is: "${userPrompt}".
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -443,6 +457,7 @@ The equipment is: "${userPrompt}".
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -481,6 +496,7 @@ The monster is: "${userPrompt}".
 - Do not include any text, UI, watermarks, or background elements.
 `;
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -523,6 +539,7 @@ The creature is: "${userPrompt}".
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -560,6 +577,7 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: masterPrompt,
@@ -611,6 +629,7 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
     }
 
     try {
+        const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image-preview',
             contents: { parts },
@@ -677,6 +696,7 @@ Generate the music brief now.
   const masterPrompt = type === 'sfx' ? sfxPrompt : musicPrompt;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: masterPrompt,
@@ -716,6 +736,7 @@ export const generateSkillDesign = async (userPrompt: string): Promise<string> =
 立即生成技能设计。
   `;
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: masterPrompt,
@@ -760,6 +781,7 @@ export const generateStatsDesign = async (userPrompt: string): Promise<string> =
 立即生成属性。
   `;
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: masterPrompt,
@@ -886,6 +908,7 @@ Generate the JSON document now.
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: masterPrompt,
@@ -926,6 +949,7 @@ Generate the updated JSON document now.
   `;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: masterPrompt,
