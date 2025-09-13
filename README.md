@@ -1,3 +1,4 @@
+[English](README.en.md) | **简体中文**
 
 # AI RPG 资源工厂
 
@@ -67,6 +68,10 @@
 *   **样式:** Tailwind CSS
 *   **核心 AI:** Google Gemini API
 *   **本地存储:** IndexedDB
+
+## 许可证
+
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
 
 ---
 *本项目由 Google Gemini API 驱动。*
