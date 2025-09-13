@@ -47,12 +47,12 @@
 
 ## 如何使用
 
-1.  **设置 API 密钥：** 您有两种方式提供 Gemini API 密钥：
-    *   **环境变量 (推荐):** 如果您在自己的环境中部署此应用，建议设置一个名为 `API_KEY` 的环境变量。
-        *   **Vercel 部署:** 点击上方的 "Deploy with Vercel" 按钮，部署流程中会提示您输入 API 密钥。
-        *   **Google Cloud 部署:** 点击上方的 "Deploy to Google Cloud" 按钮。部署完成后，您需要进入 Cloud Run 服务，在“修订版本”标签页中编辑新部署的修订版本，然后在“变量与密钥”部分添加一个名为 `API_KEY` 的环境变量，值为您的 Gemini API 密钥。
-    *   **应用内设置:** 如果未检测到环境变量，应用会提示您输入密钥。点击右上角的设置图标 ⚙️ 也可以随时输入或修改。在应用内设置的密钥会保存在您的浏览器本地，并**优先于**环境变量。
-    
+1.  **设置 API 密钥 (必需):**
+    本应用通过名为 `API_KEY` 的环境变量获取 Gemini API 密钥。 **应用内不提供设置密钥的界面。** 您必须在部署应用时配置此环境变量。
+
+    *   **Vercel 部署:** 点击上方的 "Deploy with Vercel" 按钮，在部署流程中会提示您输入 `API_KEY` 的值。
+    *   **Google Cloud 部署:** 点击上方的 "Deploy to Google Cloud" 按钮。部署完成后，您需要进入 Cloud Run 服务，在“修订版本”标签页中编辑新部署的修订版本，然后在“变量与密钥”部分添加一个名为 `API_KEY` 的环境变量，值为您的 Gemini API 密钥。
+
     您可以从 [Google AI Studio](https://aistudio.google.com/app/apikey) 获取 API 密钥。 **重要提示：** 本应用的核心图像生成功能需要使用与已启用结算功能的 Google Cloud 项目关联的 API 密钥。仅使用 AI Studio 的免费密钥将**无法**生成图像。
 
 2.  从左侧菜单选择你想要生成的资源类型。

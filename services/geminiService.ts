@@ -2,17 +2,27 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { translateServiceError as t } from './i18n';
 
-const getAiClient = (): GoogleGenAI => {
-    // FIX: Per coding guidelines, API key must come exclusively from process.env.
-    const apiKey = process.env.API_KEY;
+export const isApiKeySet = (): boolean => {
+    return !!localStorage.getItem('gemini_api_key') || !!process.env.API_KEY;
+};
 
-    if (!apiKey) {
-        // FIX: Use nested translation key
-        throw new Error(t('serviceErrors.apiKeyNotSet'));
+const getAiClient = (): GoogleGenAI => {
+    // User-provided key from local storage takes precedence
+    const userApiKey = localStorage.getItem('gemini_api_key');
+    if (userApiKey) {
+        return new GoogleGenAI({ apiKey: userApiKey });
     }
 
-    return new GoogleGenAI({ apiKey });
+    // Fallback to environment variable
+    const envApiKey = process.env.API_KEY;
+    if (envApiKey) {
+        return new GoogleGenAI({ apiKey: envApiKey });
+    }
+    
+    // No key found.
+    throw new Error(t('serviceErrors.apiKeyNotSet'));
 };
+
 
 // Helper to parse data URL
 const parseDataUrl = (dataUrl: string): { mimeType: string; data: string } | null => {

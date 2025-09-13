@@ -46,12 +46,12 @@ This toolbox provides a complete set of asset generators, covering various aspec
 
 ## How to Use
 
-1.  **Set Up Your API Key:** You have two ways to provide your Gemini API key:
-    *   **Environment Variable (Recommended):** If you are deploying this application in your own environment, it's recommended to set an environment variable named `API_KEY`.
-        *   **Vercel Deployment:** Click the "Deploy with Vercel" button above. You will be prompted to enter your API key during the deployment process.
-        *   **Google Cloud Deployment:** Click the "Deploy to Google Cloud" button above. After deployment, you need to go to your Cloud Run service, edit the newly deployed revision, and add an environment variable named `API_KEY` with your Gemini API key in the "Variables & Secrets" section.
-    *   **In-App Settings:** If no environment variable is detected, the application will prompt you to enter a key. You can also click the settings icon ⚙️ in the top right to enter or change it at any time. The key set within the app is stored locally in your browser and **takes precedence** over the environment variable.
-    
+1.  **Set Your API Key (Required):**
+    This application retrieves the Gemini API key from an environment variable named `API_KEY`. **There is no in-app interface for setting the key.** You must configure this environment variable when deploying the application.
+
+    *   **Vercel Deployment:** Click the "Deploy with Vercel" button above. You will be prompted to enter the value for `API_KEY` during the deployment process.
+    *   **Google Cloud Deployment:** Click the "Deploy to Google Cloud" button above. After deployment, you need to go to your Cloud Run service, edit the newly deployed revision, and add an environment variable named `API_KEY` with your Gemini API key in the "Variables & Secrets" section.
+
     You can get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey). **IMPORTANT:** The core image generation features of this application require an API key associated with a Google Cloud project that has **billing enabled**. Using a free-tier key from AI Studio alone **will not** be sufficient to generate images.
 
 2.  Select the type of asset you want to generate from the left-hand menu.
