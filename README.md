@@ -1,6 +1,8 @@
 [English](README.en.md) | **简体中文**
 
 # AI RPG 资源工厂
+<img width="3840" height="1890" alt="image" src="https://github.com/user-attachments/assets/4e4a39f8-6e90-4e58-ae16-0d392c1d1021" />
+
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Foospace%2Fgemini-rpg-maker-factory&env=API_KEY&envDescription=Enter%20your%20Google%20Gemini%20API%20key.&envLink=https://aistudio.google.com/app/apikey) [![Deploy to Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run?git_repo=https%3A%2F%2Fgithub.com%2Foospace%2Fgemini-rpg-maker-factory)
 
