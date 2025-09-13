@@ -1,6 +1,7 @@
 [English](README.en.md) | **简体中文**
 
 # AI RPG 资源工厂
+Demo: https://rpg.oospace.com/
 <img width="3840" height="1890" alt="image" src="https://github.com/user-attachments/assets/4e4a39f8-6e90-4e58-ae16-0d392c1d1021" />
 
 
