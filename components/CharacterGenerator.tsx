@@ -163,6 +163,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [walkingSprite, setWalkingSprite] = useState<AssetState>(initialAssetState);
   const [battlerSprite, setBattlerSprite] = useState<AssetState>(initialAssetState);
   const [faceSprite, setFaceSprite] = useState<AssetState>(initialAssetState);
+  const [visibleAssets, setVisibleAssets] = useState<AssetType[]>([]);
   
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -409,6 +410,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     setWalkingSprite(initialAssetState);
     setBattlerSprite(initialAssetState);
     setFaceSprite(initialAssetState);
+    setVisibleAssets([]);
     setUploadedImage(null);
     setOptimizationChoices({ sharpen: false, shading: false, colors: false });
     setStyleInfluence('');
@@ -431,6 +433,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     setWalkingSprite(initialAssetState);
     setBattlerSprite(initialAssetState);
     setFaceSprite(initialAssetState);
+    setVisibleAssets([]);
     setBaseError(null);
     setAdjustmentPrompt('');
   };
@@ -507,6 +510,13 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
 
   const handleOptimizationChoiceChange = (choice: OptimizationChoice) => {
     setOptimizationChoices(prev => ({ ...prev, [choice]: !prev[choice] }));
+  };
+
+  const handleShowAndGenerateAsset = (assetType: AssetType) => {
+      if (!visibleAssets.includes(assetType)) {
+          setVisibleAssets(prev => [...prev, assetType]);
+      }
+      handleGenerateAsset(assetType);
   };
 
   const isOptimizeButtonDisabled = apiLock.isApiLocked || !uploadedImage || (!Object.values(optimizationChoices).some(v => v) && !styleInfluence && !referenceImage);
@@ -741,124 +751,128 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     </div>
   );
 
-  const renderGenerateStep = () => (
-    <div>
-        {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
-        <div className="text-center mb-8">
-            <h2 className="text-3xl text-yellow-400 font-press-start">第二步：生成游戏资源</h2>
-            <p className="text-lg text-gray-300 mt-2">使用你的基础角色为 RPG Maker MZ 生成配套资源。</p>
-            <Button onClick={handleStartOver} disabled={apiLock.isApiLocked} className="mt-4 bg-red-600 border-red-800 hover:bg-red-500 hover:border-red-700 active:bg-red-700 active:border-red-900">
-                重新开始
-            </Button>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
-                <h3 className="text-2xl text-yellow-400 mb-4 font-press-start text-center">基础角色</h3>
-                <div className='flex-grow'>
-                    <img 
-                      src={baseImage!} 
-                      alt="基础角色" 
-                      className="p-2 bg-checkered-pattern rounded-md cursor-zoom-in transition-transform hover:scale-105" 
-                      style={{ imageRendering: 'pixelated' }} 
-                      onClick={() => setPreviewImage(baseImage)}
-                      title="点击放大预览"
-                    />
-                    <AdjustmentInput
-                        adjustmentPrompt={adjustmentPrompt}
-                        setAdjustmentPrompt={setAdjustmentPrompt}
-                        handleAdjust={handleAdjustBaseCharacter}
-                        isAdjusting={isAdjusting}
-                        disabled={apiLock.isApiLocked}
-                    />
-                </div>
-                <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage} />
-            </div>
-             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Walking Sprite */}
-                <div className="bg-gray-800 p-4 rounded-lg shadow-inner border-2 border-gray-700 flex flex-col">
-                    <h3 className="text-xl text-yellow-400 mb-4 font-press-start text-center">行走图</h3>
-                    <div className="flex-grow">
-                        <SpriteDisplay
-                            isLoading={walkingSprite.isLoading}
-                            error={walkingSprite.error}
-                            generatedImage={walkingSprite.image}
-                            loadingText="生成中..."
-                            placeholder={<div className="text-center text-gray-500 p-4">点击下方生成 144x192 像素的行走图。</div>}
-                            downloadFileName="walking_sprite.png"
-                            imageAlt="生成的行走图"
-                            imageClassName="w-[144px] h-[192px]"
-                            onRemoveBackground={() => handleRemoveBg(
-                                'walking', 
-                                walkingSprite.image, 
-                                (url) => setWalkingSprite(s => ({ ...s, image: url, error: null })), 
-                                (err) => setWalkingSprite(s => ({ ...s, error: err }))
-                            )}
-                            isRemovingBackground={isRemovingBgFor === 'walking'}
-                         />
-                    </div>
-                    <Button onClick={() => handleGenerateAsset('walking')} disabled={walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading || apiLock.isApiLocked} className="mt-4 w-full">
-                        {walkingSprite.isLoading ? '处理中...' : '生成'}
-                    </Button>
-                </div>
+  const renderGenerateStep = () => {
+      const isAnyAssetLoading = walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading;
 
-                {/* Battler Sprite */}
-                 <div className="bg-gray-800 p-4 rounded-lg shadow-inner border-2 border-gray-700 flex flex-col">
-                    <h3 className="text-xl text-yellow-400 mb-4 font-press-start text-center">战斗图</h3>
-                    <div className="flex-grow">
-                        <SpriteDisplay
-                            isLoading={battlerSprite.isLoading}
-                            error={battlerSprite.error}
-                            generatedImage={battlerSprite.image}
-                            loadingText="生成中..."
-                            placeholder={<div className="text-center text-gray-500 p-4">点击下方生成侧视图战斗图。</div>}
-                            downloadFileName="battler.png"
-                            imageAlt="生成的战斗图"
-                            onRemoveBackground={() => handleRemoveBg(
-                                'battler', 
-                                battlerSprite.image, 
-                                (url) => setBattlerSprite(s => ({ ...s, image: url, error: null })), 
-                                (err) => setBattlerSprite(s => ({ ...s, error: err }))
-                            )}
-                            isRemovingBackground={isRemovingBgFor === 'battler'}
-                         />
-                    </div>
-                    <Button onClick={() => handleGenerateAsset('battler')} disabled={walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading || apiLock.isApiLocked} className="mt-4 w-full">
-                        {battlerSprite.isLoading ? '处理中...' : '生成'}
-                    </Button>
-                </div>
+      const derivedAssetsConfig: {
+          type: AssetType;
+          title: string;
+          state: AssetState;
+          spriteDisplayProps: Omit<React.ComponentProps<typeof SpriteDisplay>, 'isLoading' | 'error' | 'generatedImage'>;
+          description: string;
+      }[] = [
+          { type: 'walking', title: '行走图', state: walkingSprite, spriteDisplayProps: { imageClassName: "w-[144px] h-[192px]", downloadFileName: "walking_sprite.png", imageAlt:"行走图", loadingText: "生成中...", placeholder:<div/> }, description: "生成 144x192 像素的行走图。" },
+          { type: 'battler', title: '战斗图', state: battlerSprite, spriteDisplayProps: { downloadFileName: "battler.png", imageAlt:"战斗图", loadingText: "生成中...", placeholder:<div/> }, description: "生成侧视图战斗图。" },
+          { type: 'faceset', title: '脸图', state: faceSprite, spriteDisplayProps: { imageClassName: "w-[144px] h-[144px]", downloadFileName: "faceset.png", imageAlt:"脸图", loadingText: "生成中...", placeholder:<div/> }, description: "生成 144x144 像素的脸图。" },
+      ];
 
-                {/* Faceset Sprite */}
-                 <div className="bg-gray-800 p-4 rounded-lg shadow-inner border-2 border-gray-700 flex flex-col">
-                    <h3 className="text-xl text-yellow-400 mb-4 font-press-start text-center">脸图</h3>
-                    <div className="flex-grow">
-                        <SpriteDisplay
-                            isLoading={faceSprite.isLoading}
-                            error={faceSprite.error}
-                            generatedImage={faceSprite.image}
-                            loadingText="生成中..."
-                            placeholder={<div className="text-center text-gray-500 p-4">点击下方生成 144x144 像素的脸图。</div>}
-                            downloadFileName="faceset.png"
-                            imageAlt="生成的脸图"
-                            imageClassName="w-[144px] h-[144px]"
-                            onRemoveBackground={() => handleRemoveBg(
-                                'faceset', 
-                                faceSprite.image, 
-                                (url) => setFaceSprite(s => ({ ...s, image: url, error: null })), 
-                                (err) => setFaceSprite(s => ({ ...s, error: err }))
-                            )}
-                            isRemovingBackground={isRemovingBgFor === 'faceset'}
-                         />
-                    </div>
-                    <Button onClick={() => handleGenerateAsset('faceset')} disabled={walkingSprite.isLoading || battlerSprite.isLoading || faceSprite.isLoading || apiLock.isApiLocked} className="mt-4 w-full">
-                        {faceSprite.isLoading ? '处理中...' : '生成'}
-                    </Button>
-                </div>
+      const visibleDerivedAssets = derivedAssetsConfig.filter(c => visibleAssets.includes(c.type));
+      const hiddenDerivedAssets = derivedAssetsConfig.filter(c => !visibleAssets.includes(c.type));
 
-             </div>
-        </div>
-    </div>
-  );
+      const getButtonText = (state: AssetState) => {
+          if (state.isLoading) return '处理中...';
+          if (state.error) return '重试';
+          if (state.image) return '重新生成';
+          return '生成';
+      };
+
+      return (
+          <div>
+              {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
+              <div className="text-center mb-8">
+                  <h2 className="text-3xl text-yellow-400 font-press-start">第二步：生成游戏资源</h2>
+                  <p className="text-lg text-gray-300 mt-2">使用你的基础角色为 RPG Maker MZ 生成配套资源。</p>
+                  <Button onClick={handleStartOver} disabled={apiLock.isApiLocked} className="mt-4 bg-red-600 border-red-800 hover:bg-red-500 hover:border-red-700 active:bg-red-700 active:border-red-900">
+                      重新开始
+                  </Button>
+              </div>
+              
+              <div className="w-full border-t-4 border-dashed border-gray-600 my-8"></div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
+                      <h3 className="text-2xl text-yellow-400 mb-4 font-press-start text-center">基础角色</h3>
+                      <div className='flex-grow'>
+                          <img
+                              src={baseImage!}
+                              alt="基础角色"
+                              className="p-2 bg-checkered-pattern rounded-md cursor-zoom-in transition-transform hover:scale-105 mx-auto"
+                              style={{ imageRendering: 'pixelated' }}
+                              onClick={() => setPreviewImage(baseImage)}
+                              title="点击放大预览"
+                          />
+                          <AdjustmentInput
+                              adjustmentPrompt={adjustmentPrompt}
+                              setAdjustmentPrompt={setAdjustmentPrompt}
+                              handleAdjust={handleAdjustBaseCharacter}
+                              isAdjusting={isAdjusting}
+                              disabled={apiLock.isApiLocked}
+                          />
+                          {hiddenDerivedAssets.length > 0 && (
+                            <div className="mt-6 border-t-2 border-gray-700 pt-4 text-center">
+                                <h3 className="text-xl text-yellow-400 mb-4 font-press-start">下一步：生成配套资源</h3>
+                                <div className="flex flex-wrap gap-4 justify-center">
+                                    {hiddenDerivedAssets.map(config => (
+                                        <Button
+                                            key={config.type}
+                                            onClick={() => handleShowAndGenerateAsset(config.type)}
+                                            disabled={isAnyAssetLoading || apiLock.isApiLocked}
+                                            className="text-base px-4 py-2"
+                                        >
+                                            生成{config.title}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                          )}
+                      </div>
+                      <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage} />
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    {visibleDerivedAssets.length === 0 && (
+                        <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700 h-full flex flex-col items-center justify-center text-center text-gray-500">
+                            <div className="w-24 h-24 border-4 border-dashed border-gray-600 rounded-lg flex items-center justify-center mb-4">
+                                <span className="text-5xl">➡️</span>
+                            </div>
+                            <p className="text-xl font-press-start">配套资源</p>
+                            <p className="mt-2 text-lg">你生成的资源 (行走图、战斗图等) 将会显示在这里。</p>
+                        </div>
+                    )}
+                    <div className="space-y-6">
+                        {visibleDerivedAssets.map(config => (
+                            <div key={config.type} className="bg-gray-800 p-4 rounded-lg shadow-inner border-2 border-gray-700 flex flex-col">
+                                <h3 className="text-xl text-yellow-400 mb-4 font-press-start text-center">{config.title}</h3>
+                                <div className="flex-grow">
+                                    <SpriteDisplay
+                                        isLoading={config.state.isLoading}
+                                        error={config.state.error}
+                                        generatedImage={config.state.image}
+                                        onRemoveBackground={() => {
+                                            let imageSetter: ((url: string) => void) | undefined;
+                                            let errorSetter: ((err: string | null) => void) | undefined;
+                                            if (config.type === 'walking') { imageSetter = (url) => setWalkingSprite(s => ({ ...s, image: url, error: null })); errorSetter = (err) => setWalkingSprite(s => ({ ...s, error: err })); }
+                                            if (config.type === 'battler') { imageSetter = (url) => setBattlerSprite(s => ({ ...s, image: url, error: null })); errorSetter = (err) => setBattlerSprite(s => ({ ...s, error: err })); }
+                                            if (config.type === 'faceset') { imageSetter = (url) => setFaceSprite(s => ({ ...s, image: url, error: null })); errorSetter = (err) => setFaceSprite(s => ({ ...s, error: err })); }
+                                            if (imageSetter && errorSetter) {
+                                                handleRemoveBg(config.type, config.state.image, imageSetter, errorSetter);
+                                            }
+                                        }}
+                                        isRemovingBackground={isRemovingBgFor === config.type}
+                                        {...config.spriteDisplayProps}
+                                    />
+                                </div>
+                                <Button onClick={() => handleGenerateAsset(config.type)} disabled={isAnyAssetLoading || apiLock.isApiLocked} className="mt-4 w-full">
+                                    {getButtonText(config.state)}
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                  </div>
+              </div>
+          </div>
+      );
+  }
 
   return step === 'describe' ? renderDescribeStep() : renderGenerateStep();
 };
