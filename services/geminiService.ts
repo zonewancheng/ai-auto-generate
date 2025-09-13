@@ -1,12 +1,14 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
+import { translateServiceError as t } from './i18n';
 
 const getAiClient = (): GoogleGenAI => {
-    // 优先级: 1. 用户在UI中设置的密钥 (LocalStorage) 2. 环境变量
-    const apiKey = localStorage.getItem('gemini_api_key') || process.env.API_KEY;
+    // FIX: Per coding guidelines, API key must come exclusively from process.env.
+    const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
-        throw new Error("Gemini API 密钥未设置。请在设置中输入，或配置环境变量。");
+        // FIX: Use nested translation key
+        throw new Error(t('serviceErrors.apiKeyNotSet'));
     }
 
     return new GoogleGenAI({ apiKey });
@@ -25,33 +27,39 @@ const parseDataUrl = (dataUrl: string): { mimeType: string; data: string } | nul
 const handleApiError = (error: unknown): never => {
     console.error("Error calling Gemini API:", error);
     if (error instanceof Error) {
-        if (error.message.includes("Gemini API 密钥未设置")) {
+        if (error.message.includes("Gemini API key is not set")) { // check in english
             throw error;
         }
 
-        // 检查是否为关于需要付费账户的特定 Imagen API 错误
+        // Check for specific Imagen API error about billed accounts
         if (error.message.includes("Imagen API is only accessible to billed users")) {
-            throw new Error("您的 API 密钥无权访问图像生成功能。这通常需要一个启用了结算功能的 Google Cloud 项目。请检查您的 API 密钥设置。");
+            // FIX: Use nested translation key
+            throw new Error(t('serviceErrors.imagenBilledOnlyError'));
         }
 
         try {
             // The error message from the SDK might be a JSON string.
             const parsedError = JSON.parse(error.message);
             if (parsedError?.error?.code === 429) {
-                throw new Error("已达到请求上限。请稍后再试。");
+                // FIX: Use nested translation key
+                throw new Error(t('serviceErrors.rateLimitError'));
             }
             const message = parsedError?.error?.message || error.message;
-            throw new Error(`Gemini API 错误: ${message}`);
+            // FIX: Use nested translation key
+            throw new Error(t('serviceErrors.geminiApiError', message));
         } catch (e) {
             // If parsing fails, check the raw string for keywords related to rate limiting.
             if (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
-                throw new Error("已达到请求上限。请稍后再试。");
+                // FIX: Use nested translation key
+                throw new Error(t('serviceErrors.rateLimitError'));
             }
             // If it's not a rate limit error and parsing failed, use the original message.
-            throw new Error(`Gemini API 错误: ${error.message}`);
+            // FIX: Use nested translation key
+            throw new Error(t('serviceErrors.geminiApiError', error.message));
         }
     }
-    throw new Error("生成图像时发生未知错误。");
+    // FIX: Use nested translation key
+    throw new Error(t('serviceErrors.unknownGenerationError'));
 };
 
 // --- Step 1: Base Character Generation ---
@@ -81,7 +89,8 @@ The character should be centered in the frame.
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -94,7 +103,8 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
     const ai = getAiClient();
     const imageParts = parseDataUrl(base64ImageDataUrl);
     if (!imageParts) {
-        throw new Error("提供了无效的 base64 图像数据。");
+        // FIX: Use nested translation key
+        throw new Error(t('serviceErrors.invalidBase64Data'));
     }
 
     try {
@@ -121,12 +131,15 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
             if (candidate?.finishReason === 'SAFETY') {
                 const safetyMessage = candidate.safetyRatings
                     ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
-                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    // FIX: Use nested translation key
+                    .map(r => t('serviceErrors.safetyRatingDetail', r.category, r.probability))
                     .join(', ');
-                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+                // FIX: Use nested translation key
+                throw new Error(t('serviceErrors.safetyRejection', safetyMessage || ''));
             }
             const textPart = parts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
+            // FIX: Use nested translation key
+            const refusalMessage = textPart?.text || t('serviceErrors.apiRefusalError');
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -190,7 +203,8 @@ User's request: "${userPrompt}".
 
     const mainImageParts = parseDataUrl(base64ImageDataUrl);
     if (!mainImageParts) {
-        throw new Error("提供了无效的主图像数据。");
+        // FIX: Use nested translation key
+        throw new Error(t('serviceErrors.invalidMainImageData'));
     }
 
     const parts: any[] = [
@@ -225,12 +239,15 @@ User's request: "${userPrompt}".
              if (candidate?.finishReason === 'SAFETY') {
                 const safetyMessage = candidate.safetyRatings
                     ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
-                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    // FIX: Use nested translation key
+                    .map(r => t('serviceErrors.safetyRatingDetail', r.category, r.probability))
                     .join(', ');
-                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+                // FIX: Use nested translation key
+                throw new Error(t('serviceErrors.safetyRejection', safetyMessage || ''));
             }
             const textPart = responseParts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
+            // FIX: Use nested translation key
+            const refusalMessage = textPart?.text || t('serviceErrors.apiRefusalError');
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -282,7 +299,8 @@ If an image for a part is not provided, generate that part based on the user's t
 `;
 
     if (contentParts.length === 0) {
-        throw new Error("至少需要提供一张参考图片。");
+        // FIX: Use nested translation key
+        throw new Error(t('serviceErrors.atLeastOneRefImage'));
     }
 
     contentParts.unshift({ text: masterPrompt });
@@ -306,12 +324,15 @@ If an image for a part is not provided, generate that part based on the user's t
              if (candidate?.finishReason === 'SAFETY') {
                 const safetyMessage = candidate.safetyRatings
                     ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
-                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    // FIX: Use nested translation key
+                    .map(r => t('serviceErrors.safetyRatingDetail', r.category, r.probability))
                     .join(', ');
-                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+                // FIX: Use nested translation key
+                throw new Error(t('serviceErrors.safetyRejection', safetyMessage || ''));
             }
             const textPart = responseParts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
+            // FIX: Use nested translation key
+            const refusalMessage = textPart?.text || t('serviceErrors.apiRefusalError');
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -391,7 +412,8 @@ The theme of the tileset is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -448,7 +470,8 @@ The animation should depict the user's requested effect, progressing logically f
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -489,7 +512,8 @@ The chest's appearance is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -528,7 +552,8 @@ The item is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -567,7 +592,8 @@ The equipment is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -605,7 +631,8 @@ The monster is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -648,7 +675,8 @@ The creature is: "${userPrompt}".
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -687,7 +715,8 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("API 未返回任何图像数据。这可能是由于安全策略或提示过于模糊。请尝试修改您的提示。");
+      // FIX: Use nested translation key
+      throw new Error(t('serviceErrors.noImageDataError'));
     }
   } catch (error) {
     handleApiError(error);
@@ -720,7 +749,8 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
     }
 
     if (parts.length <= 1) {
-        throw new Error("没有提供有效的资源图片。");
+        // FIX: Use nested translation key
+        throw new Error(t('serviceErrors.noValidAssetImages'));
     }
 
     try {
@@ -742,12 +772,15 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
             if (candidate?.finishReason === 'SAFETY') {
                 const safetyMessage = candidate.safetyRatings
                     ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
-                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    // FIX: Use nested translation key
+                    .map(r => t('serviceErrors.safetyRatingDetail', r.category, r.probability))
                     .join(', ');
-                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+                // FIX: Use nested translation key
+                throw new Error(t('serviceErrors.safetyRejection', safetyMessage || ''));
             }
             const textPart = responseParts.find(part => part.text);
-            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
+            // FIX: Use nested translation key
+            const refusalMessage = textPart?.text || t('serviceErrors.apiRefusalError');
             throw new Error(refusalMessage);
         }
     } catch (error) {
@@ -807,15 +840,15 @@ Generate the music brief now.
 const skillDesignSchema = {
   type: Type.OBJECT,
   properties: {
-    skillName: { type: Type.STRING, description: '一个很酷的、有主题的技能名称。' },
-    description: { type: Type.STRING, description: '技能在游戏中向玩家展示的描述。' },
-    mpCost: { type: Type.INTEGER, description: '使用该技能所需的 MP (魔法值) 数量。' },
-    damageType: { type: Type.STRING, description: '伤害类型 (例如，火焰、冰霜、物理、神圣、黑暗)。' },
-    target: { type: Type.STRING, description: '技能影响的对象 (例如，单个敌人、所有敌人、盟友、自己)。' },
+    skillName: { type: Type.STRING, description: 'A cool, thematic name for the skill.' },
+    description: { type: Type.STRING, description: 'The in-game description shown to the player.' },
+    mpCost: { type: Type.INTEGER, description: 'The amount of MP (Magic Points) required to use the skill.' },
+    damageType: { type: Type.STRING, description: 'The type of damage (e.g., Fire, Ice, Physical, Holy, Dark).' },
+    target: { type: Type.STRING, description: 'Who the skill affects (e.g., Single Enemy, All Enemies, Ally, Self).' },
     effects: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: '该技能施加的特殊效果或状态异常列表 (例如，“使目标中毒”、“降低敌人防御”、“治疗 100 点生命值”)。'
+      description: 'A list of special effects or status ailments this skill applies (e.g., "Poisons the target", "Lowers enemy defense", "Heals 100 HP").'
     },
   },
   required: ['skillName', 'description', 'mpCost', 'damageType', 'target', 'effects'],
@@ -823,12 +856,12 @@ const skillDesignSchema = {
 
 export const generateSkillDesign = async (userPrompt: string): Promise<string> => {
   const masterPrompt = `
-你是一位专业的 JRPG 游戏设计师。根据用户的概念设计一个角色技能。
-输出必须是符合所提供 schema 的 JSON 对象。
+You are an expert JRPG game designer. Design a character skill based on the user's concept.
+The output MUST be a JSON object that conforms to the provided schema.
 
-用户的技能概念: "${userPrompt}"
+User's skill concept: "${userPrompt}"
 
-立即生成技能设计。
+Generate the skill design now.
   `;
   try {
     const ai = getAiClient();
@@ -851,29 +884,29 @@ export const generateSkillDesign = async (userPrompt: string): Promise<string> =
 const statsDesignSchema = {
   type: Type.OBJECT,
   properties: {
-    hp: { type: Type.INTEGER, description: '最大生命值 (Health)。一个典型的 1 级英雄大约有 500 点。' },
-    mp: { type: Type.INTEGER, description: '最大魔法值 (Mana)。一个典型的 1 级法师大约有 100 点。' },
-    atk: { type: Type.INTEGER, description: '攻击力 (物理)。一个典型的 1 级战士大约有 15 点。' },
-    def: { type: Type.INTEGER, description: '防御力 (物理)。一个典型的 1 级坦克大约有 20 点。' },
-    mat: { type: Type.INTEGER, description: '魔法攻击力。一个典型的 1 级法师大约有 20 点。' },
-    mdf: { type: Type.INTEGER, description: '魔法防御力。一个典型的 1 级牧师大约有 15 点。' },
-    agi: { type: Type.INTEGER, description: '敏捷 (速度/闪避)。一个典型的 1 级盗贼大约有 20 点。' },
-    luk: { type: Type.INTEGER, description: '运气。影响各种事物。一个典型的 1 级角色大约有 10 点。' },
-    rationale: { type: Type.STRING, description: '简要解释为什么根据用户提示选择这些属性值。' }
+    hp: { type: Type.INTEGER, description: 'Max Health Points. A typical level 1 hero is around 500.' },
+    mp: { type: Type.INTEGER, description: 'Max Magic Points. A typical level 1 mage is around 100.' },
+    atk: { type: Type.INTEGER, description: 'Attack (Physical). A typical level 1 warrior is around 15.' },
+    def: { type: Type.INTEGER, description: 'Defense (Physical). A typical level 1 tank is around 20.' },
+    mat: { type: Type.INTEGER, description: 'Magic Attack. A typical level 1 mage is around 20.' },
+    mdf: { type: Type.INTEGER, description: 'Magic Defense. A typical level 1 cleric is around 15.' },
+    agi: { type: Type.INTEGER, description: 'Agility (Speed/Evasion). A typical level 1 rogue is around 20.' },
+    luk: { type: Type.INTEGER, description: 'Luck. Affects various things. A typical level 1 character is around 10.' },
+    rationale: { type: Type.STRING, description: 'A brief explanation of why these stat values were chosen based on the user prompt.' }
   },
   required: ['hp', 'mp', 'atk', 'def', 'mat', 'mdf', 'agi', 'luk', 'rationale'],
 };
 
 export const generateStatsDesign = async (userPrompt: string): Promise<string> => {
     const masterPrompt = `
-你是一位为 RPG Maker MZ 游戏平衡属性的专业游戏设计师。
-根据用户的描述为 1 级角色或怪物设计一套基础属性。
-输出必须是符合所提供 schema 的 JSON 对象。
-使用典型的 RPG Maker 值为 1 级实体设定基线。
+You are an expert game designer balancing stats for an RPG Maker MZ game.
+Design a set of base stats for a level 1 character or monster based on the user's description.
+The output MUST be a JSON object that conforms to the provided schema.
+Use typical RPG Maker values as a baseline for a level 1 entity.
 
-用户描述: "${userPrompt}"
+User's description: "${userPrompt}"
 
-立即生成属性。
+Generate the stats now.
   `;
   try {
     const ai = getAiClient();
@@ -1078,7 +1111,8 @@ export const initDB = (): Promise<IDBDatabase> => {
 
     request.onerror = () => {
       console.error('Database error:', request.error);
-      reject('打开数据库时出错');
+      // FIX: Use nested translation key
+      reject(t('serviceErrors.dbOpenError'));
     };
 
     request.onsuccess = () => {
@@ -1121,7 +1155,8 @@ export const addAsset = async (asset: Omit<AssetRecord, 'id' | 'timestamp'>): Pr
     };
     request.onerror = () => {
       console.error('Error adding asset:', request.error);
-      reject('添加资源时出错');
+      // FIX: Use nested translation key
+      reject(t('serviceErrors.dbAddAssetError'));
     };
   });
 };
@@ -1140,7 +1175,8 @@ export const getAssetsByType = async (type: string): Promise<AssetRecord[]> => {
         };
         request.onerror = () => {
             console.error('Error getting assets by type:', request.error);
-            reject('获取资源时出错');
+            // FIX: Use nested translation key
+            reject(t('serviceErrors.dbGetAssetsError'));
         };
     });
 };
@@ -1158,7 +1194,8 @@ export const getAllAssets = async (): Promise<AssetRecord[]> => {
         };
         request.onerror = () => {
             console.error('Error getting all assets:', request.error);
-            reject('获取所有资源时出错');
+            // FIX: Use nested translation key
+            reject(t('serviceErrors.dbGetAllAssetsError'));
         };
     });
 };
@@ -1176,7 +1213,8 @@ export const deleteAsset = async (id: number): Promise<void> => {
     };
     request.onerror = () => {
       console.error('Error deleting asset:', request.error);
-      reject('删除资源时出错');
+      // FIX: Use nested translation key
+      reject(t('serviceErrors.dbDeleteAssetError'));
     };
   });
 };

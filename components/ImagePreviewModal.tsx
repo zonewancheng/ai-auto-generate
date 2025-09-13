@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useTranslation } from '../services/i18n';
 
 interface ImagePreviewModalProps {
   imageUrl: string;
@@ -8,6 +9,7 @@ interface ImagePreviewModalProps {
 }
 
 const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ imageUrl, altText, onClose }) => {
+  const { t } = useTranslation();
   // Effect to handle Escape key press
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -28,7 +30,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ imageUrl, altText
       onClick={onClose} // Close on backdrop click
       role="dialog"
       aria-modal="true"
-      aria-label="图像预览"
+      aria-label={t('imagePreview')}
     >
       <div 
         className="relative max-w-[90vw] max-h-[90vh] bg-gray-800 p-2 rounded-lg shadow-2xl border-2 border-purple-600"
@@ -37,7 +39,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ imageUrl, altText
         <button 
           onClick={onClose} 
           className="absolute -top-5 -right-5 w-10 h-10 bg-red-600 text-white rounded-full text-2xl font-bold flex items-center justify-center z-10 border-2 border-white hover:bg-red-500 transition-transform transform hover:scale-110"
-          aria-label="关闭预览"
+          aria-label={t('closePreview')}
         >
           &times;
         </button>

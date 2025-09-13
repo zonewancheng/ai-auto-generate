@@ -19,6 +19,7 @@ import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
 import ImagePreviewModal from './ImagePreviewModal';
+import { useTranslation } from '../services/i18n';
 
 interface ResizeOptions {
     maxWidth: number;
@@ -73,20 +74,14 @@ interface AssetState {
 
 const initialAssetState: AssetState = { image: null, isLoading: false, error: null };
 
-const placeholderExamples = [
-    "一位勇敢的骑士，身穿闪亮的银色盔甲，披着红色长披风，手持一把闪闪发光的剑。",
-    "一位智慧的老法师，留着长长的白胡子，戴着一顶尖顶帽，手持一根发光的手杖。",
-    "一位开朗的女吟游诗人，身穿绿色衣服，背着一把鲁特琴，留着一头金发。",
-    "一位潜行的盗贼，身穿深色皮甲，戴着兜帽，手持两把匕首。",
-    "一位未来的半机械人战士，拥有发光的蓝色眼睛和一把等离子步枪。",
-];
-
-const optimizationOptionsConfig = {
-    sharpen: "锐化线条和细节",
-    shading: "增强阴影和高光",
-    colors: "丰富并统一色彩",
+// Fix: Moved this config up to be available for OptimizationChoice type alias.
+const optimizationOptionsConfigData: { [key: string]: string } = {
+    "sharpen": "Sharpen lines and details",
+    "shading": "Enhance shadows and highlights",
+    "colors": "Enrich and unify colors"
 };
-type OptimizationChoice = keyof typeof optimizationOptionsConfig;
+// FIX: Changed to use optimizationOptionsConfigData for type definition because optimizationOptionsConfig is not in scope here.
+type OptimizationChoice = keyof typeof optimizationOptionsConfigData;
 
 const HistoryPanel: React.FC<{ 
   history: AssetRecord[], 
@@ -95,19 +90,20 @@ const HistoryPanel: React.FC<{
   disabled: boolean,
   onImageClick: (url: string) => void,
 }> = ({ history, onSelect, onDelete, disabled, onImageClick }) => {
+  const { t } = useTranslation();
 
   const handleDelete = (e: React.MouseEvent, id: number | undefined) => {
     e.stopPropagation(); // Prevent onSelect from firing
-    if (typeof id === 'number' && window.confirm('你确定要删除这条历史记录吗？')) {
+    if (typeof id === 'number' && window.confirm(t('confirmDeleteHistory'))) {
       onDelete(id);
     }
   };
 
   return (
     <div className="mt-6 border-t-2 border-gray-700 pt-4">
-      <h3 className="text-xl text-yellow-400 mb-2 font-press-start">历史记录</h3>
+      <h3 className="text-xl text-yellow-400 mb-2 font-press-start">{t('history')}</h3>
       {history.length === 0 ? (
-        <p className="text-gray-500">你生成的角色将显示在此处。</p>
+        <p className="text-gray-500">{t('historyEmpty_character')}</p>
       ) : (
         <div className="max-h-60 overflow-y-auto bg-gray-900 p-2 rounded-md border-2 border-gray-700 scrollbar-hide">
           {history.map(item => (
@@ -123,7 +119,7 @@ const HistoryPanel: React.FC<{
                   className="flex-shrink-0 w-12 h-12 object-contain mr-4 bg-checkered-pattern rounded-sm cursor-zoom-in" 
                   style={{ imageRendering: 'pixelated' }} 
                   onClick={(e) => { e.stopPropagation(); onImageClick(item.imageDataUrl); }}
-                  title="点击放大预览"
+                  title={t('clickToZoom')}
                 />
                 <div className="flex-grow overflow-hidden">
                   <p className="text-gray-200 truncate font-semibold">{item.prompt}</p>
@@ -134,7 +130,7 @@ const HistoryPanel: React.FC<{
                 onClick={(e) => handleDelete(e, item.id)}
                 disabled={disabled}
                 className="absolute top-1/2 right-2 transform -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="删除"
+                aria-label={t('delete')}
               >
                 &#x1F5D1;
               </button>
@@ -148,6 +144,11 @@ const HistoryPanel: React.FC<{
 
 
 const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
+  const { t } = useTranslation();
+  
+  const placeholderExamples = JSON.parse(t('placeholderExamples_character'));
+  const optimizationOptionsConfig = JSON.parse(t('optimizationOptions_character'));
+
   const [step, setStep] = useState<'describe' | 'generate'>('describe');
   const [mode, setMode] = useState<Mode>('describe');
   const [prompt, setPrompt] = useState('');
@@ -227,14 +228,14 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       await addAsset({ type: 'character', prompt, imageDataUrl });
       loadHistory();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
-      setBaseError(`生成角色失败: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : t('unknownError');
+      setBaseError(`${t('characterGenerationFailed')}: ${errorMessage}`);
       console.error(err);
     } finally {
       setIsGeneratingBase(false);
       apiLock.unlockApi();
     }
-  }, [prompt, apiLock, loadHistory]);
+  }, [prompt, apiLock, loadHistory, t]);
 
   const handleOptimizeCharacter = useCallback(async () => {
     const activeChoices = Object.entries(optimizationChoices)
@@ -248,32 +249,38 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     setBaseError(null);
     setBaseImage(null);
 
-    let optimizationPrompt = "请对提供的像素图进行以下优化：\n";
+    // FIX: Changed to valid translation keys
+    let optimizationPrompt = t('optimizationBasePrompt_character');
     if (activeChoices.length > 0) {
         optimizationPrompt += activeChoices.map(c => `- ${c}`).join('\n') + '\n';
     }
     if (styleInfluence) {
-        optimizationPrompt += `请参考以下艺术风格：${styleInfluence}`;
+        // FIX: Changed to valid translation keys
+        optimizationPrompt += t('optimizationStylePrompt_character', styleInfluence);
     }
 
     try {
       const imageDataUrl = await optimizeCharacterImage(uploadedImage, optimizationPrompt, referenceImage);
       setBaseImage(imageDataUrl);
-      const dbPromptSummary = `已优化: ${activeChoices.join(', ') || '无'} | 风格: ${styleInfluence || '无'} | 参考图: ${referenceImage ? '有' : '无'}`;
+      const dbPromptSummary = t('dbPrompt_optimized_character', {
+        choices: activeChoices.join(', ') || t('none'),
+        style: styleInfluence || t('none'),
+        ref: referenceImage ? t('yes') : t('no')
+      });
       setCurrentBasePrompt(dbPromptSummary);
       setStep('generate');
       
       await addAsset({ type: 'character', prompt: dbPromptSummary, imageDataUrl });
       loadHistory();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
-      setBaseError(`优化角色失败: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : t('unknownError');
+      setBaseError(`${t('optimizationFailed_character')}: ${errorMessage}`);
       console.error(err);
     } finally {
       setIsGeneratingBase(false);
       apiLock.unlockApi();
     }
-  }, [uploadedImage, optimizationChoices, styleInfluence, referenceImage, apiLock, loadHistory]);
+  }, [uploadedImage, optimizationChoices, styleInfluence, referenceImage, apiLock, loadHistory, t, optimizationOptionsConfig]);
 
   const handleSynthesizeCharacter = useCallback(async () => {
     if (!prompt || apiLock.isApiLocked || (!headImage && !poseImage && !clothesImage)) return;
@@ -293,14 +300,14 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       await addAsset({ type: 'character', prompt, imageDataUrl });
       loadHistory();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
-      setBaseError(`合成角色失败: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : t('unknownError');
+      setBaseError(`${t('synthesisFailed_character')}: ${errorMessage}`);
       console.error(err);
     } finally {
       setIsGeneratingBase(false);
       apiLock.unlockApi();
     }
-  }, [prompt, headImage, poseImage, clothesImage, apiLock, loadHistory]);
+  }, [prompt, headImage, poseImage, clothesImage, apiLock, loadHistory, t]);
 
 
   const handleAdjustBaseCharacter = useCallback(async () => {
@@ -313,20 +320,20 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     try {
       const imageDataUrl = await adjustGeneratedImage(baseImage, adjustmentPrompt);
       setBaseImage(imageDataUrl);
-      const newPrompt = `已调整: ${adjustmentPrompt} (原始: ${currentBasePrompt})`;
+      const newPrompt = t('dbPrompt_adjusted', adjustmentPrompt, currentBasePrompt);
       setCurrentBasePrompt(newPrompt);
       setAdjustmentPrompt(''); // Clear prompt after successful adjustment
       await addAsset({ type: 'character', prompt: newPrompt, imageDataUrl });
       loadHistory();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
-      setBaseError(`调整角色失败: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : t('unknownError');
+      setBaseError(`${t('adjustmentFailed')}: ${errorMessage}`);
       console.error(err);
     } finally {
       setIsAdjusting(false);
       apiLock.unlockApi();
     }
-  }, [adjustmentPrompt, baseImage, currentBasePrompt, apiLock, loadHistory]);
+  }, [adjustmentPrompt, baseImage, currentBasePrompt, apiLock, loadHistory, t]);
 
   const handleGenerateAsset = useCallback(async (assetType: AssetType) => {
     if (!baseImage || apiLock.isApiLocked) return;
@@ -360,13 +367,13 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         const imageDataUrl = await serviceCall(baseImage);
         setStateResult(stateSetter, imageDataUrl);
     } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
-        setStateError(stateSetter, `生成失败: ${errorMessage}`);
+        const errorMessage = err instanceof Error ? err.message : t('unknownError');
+        setStateError(stateSetter, `${t('generationFailed')}: ${errorMessage}`);
         console.error(err);
     } finally {
         apiLock.unlockApi();
     }
-  }, [baseImage, apiLock]);
+  }, [baseImage, apiLock, t]);
 
    const handleRemoveBg = useCallback(async (
       assetIdentifier: 'base' | AssetType,
@@ -384,20 +391,20 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
         const newImageDataUrl = await removeImageBackground(currentImage);
         imageSetter(newImageDataUrl);
         if (assetIdentifier === 'base') {
-          const newPrompt = `已移除背景 (原始: ${currentBasePrompt})`;
+          const newPrompt = t('dbPrompt_bgRemoved', currentBasePrompt);
           setCurrentBasePrompt(newPrompt);
           await addAsset({ type: 'character', prompt: newPrompt, imageDataUrl: newImageDataUrl });
           loadHistory();
         }
       } catch (err) {
-        const errorMessage = err instanceof Error ? `去背失败: ${err.message}` : '发生未知错误。';
+        const errorMessage = err instanceof Error ? `${t('bgRemovalFailed')}: ${err.message}` : t('unknownError');
         errorSetter(errorMessage);
         console.error(err);
       } finally {
         setIsRemovingBgFor(null);
         apiLock.unlockApi();
       }
-    }, [apiLock, currentBasePrompt, loadHistory]);
+    }, [apiLock, currentBasePrompt, loadHistory, t]);
 
   const handleStartOver = () => {
     setStep('describe');
@@ -451,11 +458,11 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             setBaseError(null);
         } catch (err) {
             console.error("Image processing failed:", err);
-            setBaseError("处理上传图片失败。");
+            setBaseError(t('imageProcessingError'));
         }
       };
       reader.onerror = () => {
-        setBaseError("读取上传文件失败。");
+        setBaseError(t('fileReadError'));
       }
       reader.readAsDataURL(file);
     }
@@ -473,7 +480,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                     setter(resizedDataUrl);
                 } catch (err) {
                     console.error("Image processing failed:", err);
-                    setBaseError("处理上传素材失败。");
+                    setBaseError(t('partImageProcessingError'));
                 }
             };
             reader.readAsDataURL(file);
@@ -497,11 +504,11 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             setReferenceImage(resizedDataUrl);
         } catch (err) {
             console.error("Image processing failed:", err);
-            setBaseError("处理参考文件失败。");
+            setBaseError(t('refImageProcessingError'));
         }
       };
       reader.onerror = () => {
-        setBaseError("读取参考文件失败。");
+        setBaseError(t('refFileReadError'));
       }
       reader.readAsDataURL(file);
     }
@@ -534,11 +541,11 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             {image ? (
                 <div className="relative">
                     <div className="w-full h-32 p-2 bg-gray-900 border-2 border-gray-600 rounded-md flex items-center justify-center">
-                        <img src={image} alt={`${label} preview`} className="max-w-full max-h-full object-contain rounded cursor-zoom-in" style={{ imageRendering: 'pixelated' }} onClick={() => setPreviewImage(image)} title="点击放大预览" />
+                        <img src={image} alt={`${label} preview`} className="max-w-full max-h-full object-contain rounded cursor-zoom-in" style={{ imageRendering: 'pixelated' }} onClick={() => setPreviewImage(image)} title={t('clickToZoom')} />
                     </div>
                     <div className="absolute bottom-2 right-2 flex gap-2">
-                        <Button onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()} className="text-xs px-2 py-1 border-b-2 active:translate-y-px" disabled={apiLock.isApiLocked}>更换</Button>
-                        <Button onClick={onRemove} className="text-xs px-2 py-1 border-b-2 active:translate-y-px bg-red-600 border-red-800 hover:bg-red-500" disabled={apiLock.isApiLocked}>移除</Button>
+                        <Button onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()} className="text-xs px-2 py-1 border-b-2 active:translate-y-px" disabled={apiLock.isApiLocked}>{t('change')}</Button>
+                        <Button onClick={onRemove} className="text-xs px-2 py-1 border-b-2 active:translate-y-px bg-red-600 border-red-800 hover:bg-red-500" disabled={apiLock.isApiLocked}>{t('remove')}</Button>
                     </div>
                 </div>
             ) : (
@@ -553,7 +560,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
 
   const renderDescribeStep = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
+      {previewImage && <ImagePreviewModal imageUrl={previewImage} altText={t('previewAltText')} onClose={() => setPreviewImage(null)} />}
       <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700">
         <div className="flex justify-center bg-gray-900 p-2 rounded-lg mb-6 border-2 border-gray-700">
             <button
@@ -561,70 +568,70 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                 disabled={apiLock.isApiLocked}
                 className={`w-1/3 font-press-start text-sm py-3 rounded-md transition-colors ${mode === 'describe' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
             >
-                描述生成
+                {t('mode_describe')}
             </button>
             <button
                 onClick={() => setMode('optimize')}
                 disabled={apiLock.isApiLocked}
                 className={`w-1/3 font-press-start text-sm py-3 rounded-md transition-colors ${mode === 'optimize' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
             >
-                优化图片
+                {t('mode_optimize')}
             </button>
             <button
                 onClick={() => setMode('synthesis')}
                 disabled={apiLock.isApiLocked}
                 className={`w-1/3 font-press-start text-sm py-3 rounded-md transition-colors ${mode === 'synthesis' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
             >
-                素材合成
+                {t('mode_synthesis')}
             </button>
         </div>
         
         {mode === 'describe' && (
           <>
-            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">第一步：描述角色</h2>
-            <p className="text-gray-300 mb-4 text-lg">请详细描述。AI 将根据你的提示生成基础角色设计。</p>
+            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">{t('character_step1_title')}</h2>
+            <p className="text-gray-300 mb-4 text-lg">{t('character_step1_desc')}</p>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="例如：一个持武士刀、眼睛发红光的赛博格忍者"
+              placeholder={t('character_step1_placeholder')}
               className="w-full h-48 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
               disabled={apiLock.isApiLocked}
             />
              <div className="my-4">
-                <p className="text-gray-400 mb-2 text-md">或试试这些示例：</p>
+                <p className="text-gray-400 mb-2 text-md">{t('tryExamples')}</p>
                 <div className="flex flex-wrap gap-2">
-                    {placeholderExamples.map((ex, index) => (
+                    {placeholderExamples.map((ex: { full: string; short: string; }, index: number) => (
                         <button 
                             key={index}
-                            onClick={() => handleSelectExample(ex)}
+                            onClick={() => handleSelectExample(ex.full)}
                             disabled={apiLock.isApiLocked}
                             className="text-sm bg-gray-700 hover:bg-purple-600 text-gray-200 py-1 px-3 rounded-full transition-colors disabled:opacity-50"
                         >
-                            {ex.split('，')[0]}...
+                            {ex.short}...
                         </button>
                     ))}
                 </div>
             </div>
             <Button onClick={handleGenerateBaseCharacter} disabled={apiLock.isApiLocked || !prompt} className="mt-4 w-full">
-              {isGeneratingBase ? '生成中...' : '生成角色'}
+              {isGeneratingBase ? t('generating') : t('generateCharacter')}
             </Button>
           </>
         )}
         {mode === 'optimize' && (
           <>
-            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">第一步：上传角色图片</h2>
-            <p className="text-gray-300 mb-4 text-lg">上传你的像素图角色，AI 将会优化它，同时保持原图尺寸。</p>
+            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">{t('character_optimize_step1_title')}</h2>
+            <p className="text-gray-300 mb-4 text-lg">{t('character_optimize_step1_desc')}</p>
             
             {uploadedImage ? (
               <div className="relative">
                 <div className="w-full h-40 p-3 bg-gray-900 border-2 border-gray-600 rounded-md flex items-center justify-center">
                     <img 
                       src={uploadedImage} 
-                      alt="上传角色预览" 
+                      alt={t('uploadedCharacterPreview')} 
                       className="max-w-full max-h-full object-contain rounded cursor-zoom-in" 
                       style={{ imageRendering: 'pixelated' }} 
                       onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} 
-                      title="点击放大预览" 
+                      title={t('clickToZoom')} 
                     />
                 </div>
                 <Button 
@@ -632,7 +639,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                     className="absolute bottom-4 right-4 text-sm px-4 py-2 border-b-2 active:translate-y-px"
                     disabled={apiLock.isApiLocked}
                 >
-                    更换图片
+                    {t('changeImage')}
                 </Button>
               </div>
             ) : (
@@ -640,12 +647,12 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                   className="w-full h-40 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer transition-colors"
                   onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
               >
-                  <span className="text-gray-500 text-center">点击或拖放上传</span>
+                  <span className="text-gray-500 text-center">{t('clickOrDropToUpload')}</span>
               </div>
             )}
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked} />
             
-            <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">第二步：选择优化选项</h3>
+            <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">{t('character_optimize_step2_title')}</h3>
             <div className="space-y-2 text-lg">
                 {Object.entries(optimizationOptionsConfig).map(([key, label]) => (
                     <label key={key} className="flex items-center p-2 bg-gray-900 rounded-md cursor-pointer hover:bg-gray-700">
@@ -656,83 +663,83 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                             disabled={apiLock.isApiLocked || !uploadedImage}
                             className="w-5 h-5 bg-gray-700 border-gray-500 rounded text-purple-600 focus:ring-purple-500"
                         />
-                        <span className="ml-3 text-gray-300">{label}</span>
+                        <span className="ml-3 text-gray-300">{label as string}</span>
                     </label>
                 ))}
             </div>
 
-            <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">第三步：指定参考风格 (可选)</h3>
+            <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">{t('character_optimize_step3_title')}</h3>
             <textarea
                 value={styleInfluence}
                 onChange={(e) => setStyleInfluence(e.target.value)}
-                placeholder="例如：风格更接近《八方旅人》，增加赛博朋克元素。"
+                placeholder={t('character_optimize_step3_placeholder')}
                 className="w-full h-20 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
                 disabled={apiLock.isApiLocked || !uploadedImage}
             />
 
-            <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">第四步：上传参考图片 (可选)</h3>
-            <p className="text-gray-300 mb-2 text-md">上传一张图片作为风格参考，AI 将模仿其画风。</p>
+            <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">{t('character_optimize_step4_title')}</h3>
+            <p className="text-gray-300 mb-2 text-md">{t('character_optimize_step4_desc')}</p>
             <div 
                 className="w-full h-24 p-2 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer transition-colors"
                 onClick={() => !apiLock.isApiLocked && referenceFileInputRef.current?.click()}
             >
                 {referenceImage ? (
-                    <img src={referenceImage} alt="参考图片预览" className="max-w-full max-h-full object-contain rounded cursor-zoom-in" onClick={(e) => { e.stopPropagation(); setPreviewImage(referenceImage); }} title="点击放大预览" />
+                    <img src={referenceImage} alt={t('refImagePreview')} className="max-w-full max-h-full object-contain rounded cursor-zoom-in" onClick={(e) => { e.stopPropagation(); setPreviewImage(referenceImage); }} title={t('clickToZoom')} />
                 ) : (
-                    <span className="text-gray-500 text-center">点击或拖放上传</span>
+                    <span className="text-gray-500 text-center">{t('clickOrDropToUpload')}</span>
                 )}
             </div>
             <input type="file" ref={referenceFileInputRef} onChange={handleReferenceFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked || !uploadedImage} />
             
             <Button onClick={handleOptimizeCharacter} disabled={isOptimizeButtonDisabled} className="mt-4 w-full">
-                {isGeneratingBase ? '优化中...' : '优化角色'}
+                {isGeneratingBase ? t('optimizing') : t('optimizeCharacter')}
             </Button>
           </>
         )}
         {mode === 'synthesis' && (
           <>
-            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">第一步：组合素材</h2>
-            <p className="text-gray-300 mb-4 text-lg">分别上传代表头像、动作和衣服的图片，AI 将会把它们融合成一个新角色。</p>
+            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">{t('character_synthesis_step1_title')}</h2>
+            <p className="text-gray-300 mb-4 text-lg">{t('character_synthesis_step1_desc')}</p>
             <div className="space-y-4">
-                <ImageUploadSlot label="头像 (Head)" image={headImage} fileInputRef={headFileInputRef} onFileChange={(e) => handlePartFileChange(e, setHeadImage)} onRemove={() => setHeadImage(null)} />
-                <ImageUploadSlot label="动作 (Pose)" image={poseImage} fileInputRef={poseFileInputRef} onFileChange={(e) => handlePartFileChange(e, setPoseImage)} onRemove={() => setPoseImage(null)} />
-                <ImageUploadSlot label="衣服 (Clothes)" image={clothesImage} fileInputRef={clothesFileInputRef} onFileChange={(e) => handlePartFileChange(e, setClothesImage)} onRemove={() => setClothesImage(null)} />
+                <ImageUploadSlot label={t('part_head')} image={headImage} fileInputRef={headFileInputRef} onFileChange={(e) => handlePartFileChange(e, setHeadImage)} onRemove={() => setHeadImage(null)} />
+                <ImageUploadSlot label={t('part_pose')} image={poseImage} fileInputRef={poseFileInputRef} onFileChange={(e) => handlePartFileChange(e, setPoseImage)} onRemove={() => setPoseImage(null)} />
+                <ImageUploadSlot label={t('part_clothes')} image={clothesImage} fileInputRef={clothesFileInputRef} onFileChange={(e) => handlePartFileChange(e, setClothesImage)} onRemove={() => setClothesImage(null)} />
             </div>
 
-             <h3 className="text-xl text-yellow-400 mt-6 mb-2 font-press-start">第二步：最终描述</h3>
-             <p className="text-gray-300 mb-2 text-md">描述你希望最终合成的角色是什么样的。</p>
+             <h3 className="text-xl text-yellow-400 mt-6 mb-2 font-press-start">{t('character_synthesis_step2_title')}</h3>
+             <p className="text-gray-300 mb-2 text-md">{t('character_synthesis_step2_desc')}</p>
              <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="例如：一位穿着华丽铠甲、手持长矛的女武神。"
+              placeholder={t('character_synthesis_step2_placeholder')}
               className="w-full h-24 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
               disabled={apiLock.isApiLocked}
             />
 
             <Button onClick={handleSynthesizeCharacter} disabled={isSynthesisButtonDisabled} className="mt-4 w-full">
-                {isGeneratingBase ? '合成中...' : '合成角色'}
+                {isGeneratingBase ? t('synthesizing') : t('synthesizeCharacter')}
             </Button>
           </>
         )}
       </div>
       <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
         <div className='flex-grow'>
-          <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">结果</h2>
+          <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">{t('results')}</h2>
           <SpriteDisplay 
             isLoading={isGeneratingBase || isAdjusting}
             error={baseError}
             generatedImage={baseImage}
-            loadingText={isAdjusting ? "AI 正在调整你的英雄..." : (mode === 'optimize' ? "AI 正在优化你的英雄..." : (mode === 'synthesis' ? "AI 正在融合你的英雄..." : "AI 正在塑造你的英雄..."))}
+            loadingText={isAdjusting ? t('loading_adjustingHero') : (mode === 'optimize' ? t('loading_optimizingHero') : (mode === 'synthesis' ? t('loading_synthesizingHero') : t('loading_creatingHero')))}
             placeholder={
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                   <div className="w-24 h-24 border-4 border-dashed border-gray-600 rounded-lg flex items-center justify-center mb-4">
                       <span className="text-5xl">?</span>
                   </div>
-                  <p className="text-xl">你的基础角色将显示在此处。</p>
+                  <p className="text-xl">{t('placeholder_baseCharacter')}</p>
               </div>
             }
             downloadFileName="base_character.png"
-            imageAlt="生成的角色"
+            imageAlt={t('generatedCharacterAlt')}
             onRemoveBackground={() => handleRemoveBg('base', baseImage, setBaseImage, (err) => setBaseError(err))}
             isRemovingBackground={isRemovingBgFor === 'base'}
           />
@@ -757,33 +764,32 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       const derivedAssetsConfig: {
           type: AssetType;
           title: string;
-          state: AssetState;
           spriteDisplayProps: Omit<React.ComponentProps<typeof SpriteDisplay>, 'isLoading' | 'error' | 'generatedImage'>;
           description: string;
       }[] = [
-          { type: 'walking', title: '行走图', state: walkingSprite, spriteDisplayProps: { imageClassName: "w-[144px] h-[192px]", downloadFileName: "walking_sprite.png", imageAlt:"行走图", loadingText: "生成中...", placeholder:<div/> }, description: "生成 144x192 像素的行走图。" },
-          { type: 'battler', title: '战斗图', state: battlerSprite, spriteDisplayProps: { downloadFileName: "battler.png", imageAlt:"战斗图", loadingText: "生成中...", placeholder:<div/> }, description: "生成侧视图战斗图。" },
-          { type: 'faceset', title: '脸图', state: faceSprite, spriteDisplayProps: { imageClassName: "w-[144px] h-[144px]", downloadFileName: "faceset.png", imageAlt:"脸图", loadingText: "生成中...", placeholder:<div/> }, description: "生成 144x144 像素的脸图。" },
+          { type: 'walking', title: t('asset_walking'), spriteDisplayProps: { imageClassName: "w-[144px] h-[192px]", downloadFileName: "walking_sprite.png", imageAlt: t('asset_walking'), loadingText: t('generating'), placeholder:<div/> }, description: "Generate a 144x192 walking sprite." },
+          { type: 'battler', title: t('asset_battler'), spriteDisplayProps: { downloadFileName: "battler.png", imageAlt: t('asset_battler'), loadingText: t('generating'), placeholder:<div/> }, description: "Generate a side-view battler." },
+          { type: 'faceset', title: t('asset_faceset'), spriteDisplayProps: { imageClassName: "w-[144px] h-[144px]", downloadFileName: "faceset.png", imageAlt: t('asset_faceset'), loadingText: t('generating'), placeholder:<div/> }, description: "Generate a 144x144 faceset." },
       ];
 
-      const visibleDerivedAssets = derivedAssetsConfig.filter(c => visibleAssets.includes(c.type));
+      const visibleDerivedAssets = derivedAssetsConfig.map(c => ({...c, state: c.type === 'walking' ? walkingSprite : c.type === 'battler' ? battlerSprite : faceSprite})).filter(c => visibleAssets.includes(c.type));
       const hiddenDerivedAssets = derivedAssetsConfig.filter(c => !visibleAssets.includes(c.type));
 
       const getButtonText = (state: AssetState) => {
-          if (state.isLoading) return '处理中...';
-          if (state.error) return '重试';
-          if (state.image) return '重新生成';
-          return '生成';
+          if (state.isLoading) return t('processing');
+          if (state.error) return t('retry');
+          if (state.image) return t('regenerate');
+          return t('generate');
       };
 
       return (
           <div>
-              {previewImage && <ImagePreviewModal imageUrl={previewImage} altText="预览" onClose={() => setPreviewImage(null)} />}
+              {previewImage && <ImagePreviewModal imageUrl={previewImage} altText={t('previewAltText')} onClose={() => setPreviewImage(null)} />}
               <div className="text-center mb-8">
-                  <h2 className="text-3xl text-yellow-400 font-press-start">第二步：生成游戏资源</h2>
-                  <p className="text-lg text-gray-300 mt-2">使用你的基础角色为 RPG Maker MZ 生成配套资源。</p>
+                  <h2 className="text-3xl text-yellow-400 font-press-start">{t('character_step2_title')}</h2>
+                  <p className="text-lg text-gray-300 mt-2">{t('character_step2_desc')}</p>
                   <Button onClick={handleStartOver} disabled={apiLock.isApiLocked} className="mt-4 bg-red-600 border-red-800 hover:bg-red-500 hover:border-red-700 active:bg-red-700 active:border-red-900">
-                      重新开始
+                      {t('startOver')}
                   </Button>
               </div>
               
@@ -791,15 +797,15 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="lg:col-span-1 bg-gray-800 p-4 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
-                      <h3 className="text-2xl text-yellow-400 mb-4 font-press-start text-center">基础角色</h3>
+                      <h3 className="text-2xl text-yellow-400 mb-4 font-press-start text-center">{t('baseCharacter')}</h3>
                       <div className='flex-grow'>
                           <img
                               src={baseImage!}
-                              alt="基础角色"
+                              alt={t('baseCharacter')}
                               className="p-2 bg-checkered-pattern rounded-md cursor-zoom-in transition-transform hover:scale-105 mx-auto"
                               style={{ imageRendering: 'pixelated' }}
                               onClick={() => setPreviewImage(baseImage)}
-                              title="点击放大预览"
+                              title={t('clickToZoom')}
                           />
                           <AdjustmentInput
                               adjustmentPrompt={adjustmentPrompt}
@@ -810,7 +816,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                           />
                           {hiddenDerivedAssets.length > 0 && (
                             <div className="mt-6 border-t-2 border-gray-700 pt-4 text-center">
-                                <h3 className="text-xl text-yellow-400 mb-4 font-press-start">下一步：生成配套资源</h3>
+                                <h3 className="text-xl text-yellow-400 mb-4 font-press-start">{t('character_nextStep')}</h3>
                                 <div className="flex flex-wrap gap-4 justify-center">
                                     {hiddenDerivedAssets.map(config => (
                                         <Button
@@ -819,7 +825,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                                             disabled={isAnyAssetLoading || apiLock.isApiLocked}
                                             className="text-base px-4 py-2"
                                         >
-                                            生成{config.title}
+                                            {t('generate')} {config.title}
                                         </Button>
                                     ))}
                                 </div>
@@ -835,8 +841,8 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                             <div className="w-24 h-24 border-4 border-dashed border-gray-600 rounded-lg flex items-center justify-center mb-4">
                                 <span className="text-5xl">➡️</span>
                             </div>
-                            <p className="text-xl font-press-start">配套资源</p>
-                            <p className="mt-2 text-lg">你生成的资源 (行走图、战斗图等) 将会显示在这里。</p>
+                            <p className="text-xl font-press-start">{t('derivedAssets')}</p>
+                            <p className="mt-2 text-lg">{t('placeholder_derivedAssets')}</p>
                         </div>
                     )}
                     <div className="space-y-6">

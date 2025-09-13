@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import Button from './Button';
 import ImagePreviewModal from './ImagePreviewModal';
+import { useTranslation } from '../services/i18n';
 
 interface SpriteDisplayProps {
   isLoading: boolean;
@@ -31,6 +33,7 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
   isRemovingBackground,
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const { t } = useTranslation();
 
   const renderContent = () => {
     if (isLoading) {
@@ -45,7 +48,7 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
       return (
         <div className="flex flex-col items-center justify-center h-full text-center">
           <div className="text-red-500 text-5xl mb-4">!</div>
-          <p className="text-xl text-red-400">生成失败</p>
+          <p className="text-xl text-red-400">{t('generationFailed')}</p>
           <p className="text-gray-400 mt-2">{error}</p>
         </div>
       );
@@ -64,7 +67,7 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
             <div
               className={`${imageContainerClassName} transition-transform hover:scale-105 cursor-zoom-in`}
               onClick={() => setIsPreviewOpen(true)}
-              title="点击放大预览"
+              title={t('clickToZoom')}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && setIsPreviewOpen(true)}
@@ -76,14 +79,14 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
                 style={{ imageRendering: 'pixelated' }}
               />
             </div>
-            <p className="text-gray-300 mt-4 text-center">右键点击并“图像另存为...”来下载。</p>
+            <p className="text-gray-300 mt-4 text-center">{t('downloadHint')}</p>
             <div className="mt-2 w-full max-w-xs space-y-2">
               <a
                 href={generatedImage}
                 download={downloadFileName}
                 className="block"
               >
-                <Button className="w-full">下载 PNG</Button>
+                <Button className="w-full">{t('downloadPng')}</Button>
               </a>
               {onRemoveBackground && (
                  <Button 
@@ -91,7 +94,7 @@ const SpriteDisplay: React.FC<SpriteDisplayProps> = ({
                     disabled={isRemovingBackground || isLoading}
                     className="w-full bg-teal-600 border-teal-800 hover:bg-teal-500 hover:border-teal-700 active:bg-teal-700 active:border-teal-900"
                   >
-                    {isRemovingBackground ? '处理中...' : '一键去背'}
+                    {isRemovingBackground ? t('processing') : t('removeBackground')}
                   </Button>
               )}
             </div>

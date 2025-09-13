@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GamePreviewData } from '../App';
 import Button from './Button';
+import { useTranslation } from '../services/i18n';
 
 interface GamePreviewProps {
   gameData: GamePreviewData;
@@ -11,14 +12,15 @@ interface GamePreviewProps {
 type GameScreen = 'title' | 'map' | 'combat' | 'victory' | 'gameover';
 
 const GamePreview: React.FC<GamePreviewProps> = ({ gameData, onClose }) => {
+  const { t } = useTranslation();
   const [screen, setScreen] = useState<GameScreen>('title');
   const [message, setMessage] = useState('');
   const [showAttackEffect, setShowAttackEffect] = useState(false);
 
   const { blueprint, heroAsset, villainAsset, itemAsset } = gameData;
-  const heroName = blueprint.actors[0]?.name || '英雄';
-  const villainName = blueprint.enemies[0]?.name || '反派';
-  const itemName = blueprint.items[0]?.name || '宝物';
+  const heroName = blueprint.actors[0]?.name || t('hero');
+  const villainName = blueprint.enemies[0]?.name || t('villain');
+  const itemName = blueprint.items[0]?.name || t('treasure');
 
   useEffect(() => {
     setMessage(blueprint.story.summary);
@@ -27,7 +29,7 @@ const GamePreview: React.FC<GamePreviewProps> = ({ gameData, onClose }) => {
   const handleAttack = () => {
     setShowAttackEffect(true);
     setTimeout(() => {
-      setMessage(`${heroName} 击败了 ${villainName} 并夺回了 ${itemName}!`);
+      setMessage(t('victoryMessage', heroName, villainName, itemName));
       setScreen('victory');
       setShowAttackEffect(false);
     }, 500);
@@ -37,7 +39,7 @@ const GamePreview: React.FC<GamePreviewProps> = ({ gameData, onClose }) => {
     <div className="text-center">
       <h1 className="text-5xl font-press-start text-yellow-400 mb-4 drop-shadow-[0_3px_3px_rgba(0,0,0,0.8)]">{blueprint.title}</h1>
       <p className="text-xl text-gray-300 mb-8">"{blueprint.story.tagline}"</p>
-      <Button onClick={() => setScreen('map')}>开始游戏</Button>
+      <Button onClick={() => setScreen('map')}>{t('startGame')}</Button>
     </div>
   );
 
@@ -50,13 +52,13 @@ const GamePreview: React.FC<GamePreviewProps> = ({ gameData, onClose }) => {
       <div className="flex-grow flex items-center justify-center">
          <img src={heroAsset.imageDataUrl} alt={heroName} className="h-48 object-contain" style={{ imageRendering: 'pixelated' }}/>
       </div>
-      <Button onClick={() => setScreen('combat')}>挑战 {villainName}!</Button>
+      <Button onClick={() => setScreen('combat')}>{t('challengeVillain', villainName)}</Button>
     </div>
   );
   
   const renderCombatScreen = () => (
     <div className="flex flex-col items-center h-full">
-      <h2 className="text-2xl font-press-start text-red-500 mb-8">战斗开始!</h2>
+      <h2 className="text-2xl font-press-start text-red-500 mb-8">{t('battleStart')}</h2>
       <div className="flex-grow flex items-center justify-around w-full">
         <img src={heroAsset.imageDataUrl} alt={heroName} className="h-48 object-contain" style={{ imageRendering: 'pixelated' }}/>
         <span className="text-4xl font-press-start text-yellow-400">VS</span>
@@ -67,19 +69,19 @@ const GamePreview: React.FC<GamePreviewProps> = ({ gameData, onClose }) => {
             style={{ imageRendering: 'pixelated' }}
         />
       </div>
-      <Button onClick={handleAttack} className="bg-red-600 border-red-800 hover:bg-red-500">攻击!</Button>
+      <Button onClick={handleAttack} className="bg-red-600 border-red-800 hover:bg-red-500">{t('attack')}</Button>
     </div>
   );
 
   const renderVictoryScreen = () => (
     <div className="text-center">
-      <h1 className="text-4xl font-press-start text-yellow-400 mb-6">胜利!</h1>
+      <h1 className="text-4xl font-press-start text-yellow-400 mb-6">{t('victory')}</h1>
       <div className="flex items-center justify-center space-x-4 mb-6">
         <img src={heroAsset.imageDataUrl} alt={heroName} className="h-24 object-contain" style={{ imageRendering: 'pixelated' }}/>
         <img src={itemAsset.imageDataUrl} alt={itemName} className="h-16 object-contain" style={{ imageRendering: 'pixelated' }}/>
       </div>
       <p className="text-xl text-gray-300 mb-8">{message}</p>
-      <Button onClick={onClose}>结束游戏</Button>
+      <Button onClick={onClose}>{t('endGame')}</Button>
     </div>
   );
 

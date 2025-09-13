@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import CharacterGenerator from './CharacterGenerator';
 import MapGenerator from './MapGenerator';
@@ -12,8 +13,9 @@ import GameCGGenerator from './GameCGGenerator';
 import GameAudioGenerator from './GameAudioGenerator';
 import CharacterSkillGenerator from './CharacterSkillGenerator';
 import StatsDesigner from './StatsDesigner';
+import { useTranslation } from '../services/i18n';
 
-// 使用更具 JRPG 风格的图标
+// JRPG-style icons
 const CharacterIcon = () => <span className="w-6 h-6 mr-3 text-lg">👤</span>;
 const MapIcon = () => <span className="w-6 h-6 mr-3 text-lg">🗺️</span>;
 const EffectIcon = () => <span className="w-6 h-6 mr-3 text-lg">✨</span>;
@@ -29,7 +31,7 @@ const SkillIcon = () => <span className="w-6 h-6 mr-3 text-lg">🔮</span>;
 const StatsIcon = () => <span className="w-6 h-6 mr-3 text-lg">📊</span>;
 
 
-type Tab = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game-concept-art' | 'audio' | 'skill' | 'stats' | 'game';
+type TabId = 'character' | 'map' | 'combat' | 'chest' | 'monster' | 'item' | 'equipment' | 'pet' | 'game-concept-art' | 'audio' | 'skill' | 'stats' | 'game';
 
 export interface GeneratorProps {
   apiLock: {
@@ -41,26 +43,26 @@ export interface GeneratorProps {
 }
 
 interface TabConfig {
-    id: Tab;
-    label: string;
+    id: TabId;
+    labelKey: any; // keyof Translations
     icon: React.ReactNode;
     component: React.ComponentType<GeneratorProps>;
 }
 
-const TABS: TabConfig[] = [
-    { id: 'character', label: '角色生成', icon: <CharacterIcon />, component: CharacterGenerator },
-    { id: 'monster', label: '怪物生成', icon: <MonsterIcon />, component: MonsterGenerator },
-    { id: 'pet', label: '宠物/坐骑', icon: <PetIcon />, component: PetGenerator },
-    { id: 'map', label: '地图/图块', icon: <MapIcon />, component: MapGenerator },
-    { id: 'combat', label: '战斗特效', icon: <EffectIcon />, component: CombatEffectGenerator },
-    { id: 'chest', label: '宝箱', icon: <ChestIcon />, component: TreasureChestGenerator },
-    { id: 'equipment', label: '装备图标', icon: <EquipmentIcon />, component: EquipmentGenerator },
-    { id: 'item', label: '物品图标', icon: <ItemIcon />, component: ItemGenerator },
-    { id: 'game-concept-art', label: '游戏原画', icon: <ConceptArtIcon />, component: GameCGGenerator },
-    { id: 'audio', label: '游戏音频', icon: <AudioIcon />, component: GameAudioGenerator },
-    { id: 'skill', label: '角色技能', icon: <SkillIcon />, component: CharacterSkillGenerator },
-    { id: 'stats', label: '数值设计', icon: <StatsIcon />, component: StatsDesigner },
-    { id: 'game', label: '游戏策划', icon: <GameIcon />, component: GameAssembler },
+const TABS_CONFIG: TabConfig[] = [
+    { id: 'character', labelKey: 'tab_character', icon: <CharacterIcon />, component: CharacterGenerator },
+    { id: 'monster', labelKey: 'tab_monster', icon: <MonsterIcon />, component: MonsterGenerator },
+    { id: 'pet', labelKey: 'tab_pet', icon: <PetIcon />, component: PetGenerator },
+    { id: 'map', labelKey: 'tab_map', icon: <MapIcon />, component: MapGenerator },
+    { id: 'combat', labelKey: 'tab_combat', icon: <EffectIcon />, component: CombatEffectGenerator },
+    { id: 'chest', labelKey: 'tab_chest', icon: <ChestIcon />, component: TreasureChestGenerator },
+    { id: 'equipment', labelKey: 'tab_equipment', icon: <EquipmentIcon />, component: EquipmentGenerator },
+    { id: 'item', labelKey: 'tab_item', icon: <ItemIcon />, component: ItemGenerator },
+    { id: 'game-concept-art', labelKey: 'tab_cg', icon: <ConceptArtIcon />, component: GameCGGenerator },
+    { id: 'audio', labelKey: 'tab_audio', icon: <AudioIcon />, component: GameAudioGenerator },
+    { id: 'skill', labelKey: 'tab_skill', icon: <SkillIcon />, component: CharacterSkillGenerator },
+    { id: 'stats', labelKey: 'tab_stats', icon: <StatsIcon />, component: StatsDesigner },
+    { id: 'game', labelKey: 'tab_game', icon: <GameIcon />, component: GameAssembler },
 ];
 
 interface GeneratorTabsProps {
@@ -68,14 +70,15 @@ interface GeneratorTabsProps {
 }
 
 const GeneratorTabs: React.FC<GeneratorTabsProps> = ({ onFlashOfInspiration }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('character');
+  const [activeTab, setActiveTab] = useState<TabId>('character');
   const [isApiLocked, setIsApiLocked] = useState(false);
+  const { t } = useTranslation();
 
   const lockApi = () => setIsApiLocked(true);
   const unlockApi = () => setIsApiLocked(false);
   const apiLock = { isApiLocked, lockApi, unlockApi };
 
-  const getTabClass = (tabName: Tab) => {
+  const getTabClass = (tabName: TabId) => {
     return `
       flex items-center w-full text-left p-4
       font-press-start text-sm md:text-base 
@@ -97,7 +100,7 @@ const GeneratorTabs: React.FC<GeneratorTabsProps> = ({ onFlashOfInspiration }) =
         bg-gray-800 rounded-lg border-2 border-gray-700
         scrollbar-hide mb-8 md:mb-0
       ">
-        {TABS.map(tab => (
+        {TABS_CONFIG.map(tab => (
            <div 
              key={tab.id}
              onClick={() => setActiveTab(tab.id)}
@@ -108,13 +111,13 @@ const GeneratorTabs: React.FC<GeneratorTabsProps> = ({ onFlashOfInspiration }) =
              tabIndex={0}
            >
             {tab.icon}
-            <span className="whitespace-nowrap">{tab.label}</span>
+            <span className="whitespace-nowrap">{t(tab.labelKey)}</span>
            </div>
         ))}
       </nav>
 
       <div className="flex-grow min-w-0">
-        {TABS.map(tab => {
+        {TABS_CONFIG.map(tab => {
             const Component = tab.component;
             return (
              <div 

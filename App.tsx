@@ -6,7 +6,7 @@ import GamePreview from './components/GamePreview';
 import InspirationGeneratorModal from './components/InspirationGeneratorModal';
 import { getAllAssets, generateGamePlan } from './services/geminiService';
 import { AssetRecord } from './services/geminiService';
-import ApiKeyModal from './components/ApiKeyModal';
+import { useTranslation } from './services/i18n';
 
 export interface GamePreviewData {
   blueprint: any;
@@ -28,30 +28,13 @@ const App: React.FC = () => {
   const [inspirationAssets, setInspirationAssets] = useState<InspirationAssets | null>(null);
   const [gameGenerationError, setGameGenerationError] = useState<string | null>(null);
 
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const { t, language } = useTranslation();
 
   useEffect(() => {
-    const key = localStorage.getItem('gemini_api_key') || process.env.API_KEY;
-    if (key) {
-      setHasApiKey(true);
-    } else {
-      setIsApiKeyModalOpen(true);
-    }
-  }, []);
-
-  const handleSaveApiKey = (key: string) => {
-    localStorage.setItem('gemini_api_key', key);
-    setHasApiKey(true);
-    setIsApiKeyModalOpen(false);
-  };
-
+    document.title = t('documentTitle');
+  }, [t, language]);
 
   const handleFlashOfInspiration = async () => {
-    if (!hasApiKey) {
-      setIsApiKeyModalOpen(true);
-      return;
-    }
     setIsGeneratingGame(true);
     setGameGenerationError(null);
     setInspirationAssets(null);
@@ -63,19 +46,19 @@ const App: React.FC = () => {
       const itemAsset = allAssets.find(a => a.type === 'item');
 
       if (!heroAsset || !villainAsset || !itemAsset) {
-        alert("灵感需要素材！请先生成至少一个角色、一个怪物和一个物品。");
+        alert(t('inspirationNeedAssetsError'));
         return;
       }
 
       setInspirationAssets({ heroAsset, villainAsset, itemAsset });
 
       const assetPrompts = {
-        '主角': heroAsset.prompt,
-        '反派': villainAsset.prompt,
-        '关键物品': itemAsset.prompt,
+        [t('gameplanHero')]: heroAsset.prompt,
+        [t('gameplanVillain')]: villainAsset.prompt,
+        [t('gameplanKeyItem')]: itemAsset.prompt,
       };
 
-      const gameConcept = "根据用户提供的核心资源（主角、反派、关键物品），创建一个简短、经典、完整、适合 RPG Maker 的幻想冒险故事。故事应该围绕英雄击败反派、夺回关键物品展开。";
+      const gameConcept = t('gameplanConcept');
       
       const blueprint = await generateGamePlan(gameConcept, assetPrompts);
       
@@ -83,9 +66,9 @@ const App: React.FC = () => {
       setIsGamePreviewOpen(true);
 
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
-      setGameGenerationError(`生成游戏失败: ${errorMessage}`);
-      alert(`生成游戏失败: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : t('unknownError');
+      setGameGenerationError(`${t('gameGenerationFailed')}: ${errorMessage}`);
+      alert(`${t('gameGenerationFailed')}: ${errorMessage}`);
     } finally {
       setIsGeneratingGame(false);
       setInspirationAssets(null);
@@ -95,11 +78,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => hasApiKey && setIsApiKeyModalOpen(false)}
-        onSave={handleSaveApiKey}
-      />
       {isGeneratingGame && inspirationAssets && (
         <InspirationGeneratorModal 
           heroAsset={inspirationAssets.heroAsset}
@@ -113,7 +91,8 @@ const App: React.FC = () => {
           onClose={() => setIsGamePreviewOpen(false)} 
         />
       )}
-      <Header onOpenSettings={() => setIsApiKeyModalOpen(true)} />
+      {/* FIX: Per coding guidelines, API key must come from process.env and user should not be prompted. Removed settings button logic. */}
+      <Header />
       <main className="flex-grow container mx-auto p-4 md:p-8">
         <GeneratorTabs onFlashOfInspiration={handleFlashOfInspiration} />
       </main>
