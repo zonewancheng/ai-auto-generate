@@ -2,13 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import GeneratorTabs from './components/GeneratorTabs';
-import Footer from './components/Footer';
 import GamePreview from './components/GamePreview';
 import InspirationGeneratorModal from './components/InspirationGeneratorModal';
 import { getAllAssets, generateGamePlan } from './services/geminiService';
 import { AssetRecord } from './services/geminiService';
 import ApiKeyModal from './components/ApiKeyModal';
-import DonationModal from './components/DonationModal';
 
 export interface GamePreviewData {
   blueprint: any;
@@ -31,7 +29,6 @@ const App: React.FC = () => {
   const [gameGenerationError, setGameGenerationError] = useState<string | null>(null);
 
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
 
   useEffect(() => {
@@ -103,10 +100,6 @@ const App: React.FC = () => {
         onClose={() => hasApiKey && setIsApiKeyModalOpen(false)}
         onSave={handleSaveApiKey}
       />
-      <DonationModal
-        isOpen={isDonationModalOpen}
-        onClose={() => setIsDonationModalOpen(false)}
-      />
       {isGeneratingGame && inspirationAssets && (
         <InspirationGeneratorModal 
           heroAsset={inspirationAssets.heroAsset}
@@ -124,7 +117,6 @@ const App: React.FC = () => {
       <main className="flex-grow container mx-auto p-4 md:p-8">
         <GeneratorTabs onFlashOfInspiration={handleFlashOfInspiration} />
       </main>
-      <Footer onOpenDonationModal={() => setIsDonationModalOpen(true)} />
     </div>
   );
 };

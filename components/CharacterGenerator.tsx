@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   generateBaseCharacter, 
@@ -6,6 +7,7 @@ import {
   generateFacesetFromImage,
   adjustGeneratedImage,
   optimizeCharacterImage,
+  synthesizeCharacterFromParts,
   removeImageBackground,
   addAsset,
   getAssetsByType,
@@ -18,9 +20,50 @@ import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
 import ImagePreviewModal from './ImagePreviewModal';
 
+interface ResizeOptions {
+    maxWidth: number;
+    maxHeight: number;
+    smoothing?: boolean;
+}
+
+const resizeImage = (dataUrl: string, options: ResizeOptions): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const { maxWidth, maxHeight, smoothing = false } = options;
+        const img = new Image();
+        img.onload = () => {
+            const { width, height } = img;
+
+            if (width <= maxWidth && height <= maxHeight) {
+                resolve(dataUrl); // No resize needed
+                return;
+            }
+
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            const newWidth = Math.round(width * ratio);
+            const newHeight = Math.round(height * ratio);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return reject(new Error("Could not get canvas context"));
+            }
+            
+            ctx.imageSmoothingEnabled = smoothing;
+            if (smoothing) {
+                 ctx.imageSmoothingQuality = 'high';
+            }
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+            resolve(canvas.toDataURL('image/png')); 
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = dataUrl;
+    });
+};
 
 type AssetType = 'walking' | 'battler' | 'faceset';
-type Mode = 'describe' | 'optimize';
+type Mode = 'describe' | 'optimize' | 'synthesis';
 
 interface AssetState {
   image: string | null;
@@ -129,6 +172,14 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   const [optimizationChoices, setOptimizationChoices] = useState<Record<OptimizationChoice, boolean>>({ sharpen: false, shading: false, colors: false });
   const [styleInfluence, setStyleInfluence] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+
+  // State for synthesis mode
+  const [headImage, setHeadImage] = useState<string | null>(null);
+  const [poseImage, setPoseImage] = useState<string | null>(null);
+  const [clothesImage, setClothesImage] = useState<string | null>(null);
+  const headFileInputRef = useRef<HTMLInputElement>(null);
+  const poseFileInputRef = useRef<HTMLInputElement>(null);
+  const clothesFileInputRef = useRef<HTMLInputElement>(null);
   
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isRemovingBgFor, setIsRemovingBgFor] = useState<string | null>(null);
@@ -222,6 +273,33 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
       apiLock.unlockApi();
     }
   }, [uploadedImage, optimizationChoices, styleInfluence, referenceImage, apiLock, loadHistory]);
+
+  const handleSynthesizeCharacter = useCallback(async () => {
+    if (!prompt || apiLock.isApiLocked || (!headImage && !poseImage && !clothesImage)) return;
+
+    apiLock.lockApi();
+    setIsGeneratingBase(true); // Reuse loading state
+    setBaseError(null);
+    setBaseImage(null);
+
+    try {
+      const parts = { head: headImage, pose: poseImage, clothes: clothesImage };
+      const imageDataUrl = await synthesizeCharacterFromParts(parts, prompt);
+      setBaseImage(imageDataUrl);
+      setCurrentBasePrompt(prompt);
+      setStep('generate');
+
+      await addAsset({ type: 'character', prompt, imageDataUrl });
+      loadHistory();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '发生未知错误。';
+      setBaseError(`合成角色失败: ${errorMessage}`);
+      console.error(err);
+    } finally {
+      setIsGeneratingBase(false);
+      apiLock.unlockApi();
+    }
+  }, [prompt, headImage, poseImage, clothesImage, apiLock, loadHistory]);
 
 
   const handleAdjustBaseCharacter = useCallback(async () => {
@@ -335,6 +413,9 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     setOptimizationChoices({ sharpen: false, shading: false, colors: false });
     setStyleInfluence('');
     setReferenceImage(null);
+    setHeadImage(null);
+    setPoseImage(null);
+    setClothesImage(null);
   };
   
   const handleSelectExample = (example: string) => {
@@ -358,9 +439,17 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadedImage(e.target?.result as string);
-        setBaseError(null);
+      reader.onload = async (e) => {
+        const originalDataUrl = e.target?.result as string;
+        if (!originalDataUrl) return;
+        try {
+            const resizedDataUrl = await resizeImage(originalDataUrl, { maxWidth: 512, maxHeight: 512, smoothing: false });
+            setUploadedImage(resizedDataUrl);
+            setBaseError(null);
+        } catch (err) {
+            console.error("Image processing failed:", err);
+            setBaseError("处理上传图片失败。");
+        }
       };
       reader.onerror = () => {
         setBaseError("读取上传文件失败。");
@@ -369,12 +458,44 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     }
   };
 
+    const handlePartFileChange = (event: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string | null>>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const originalDataUrl = e.target?.result as string;
+                if (!originalDataUrl) return;
+                try {
+                    const resizedDataUrl = await resizeImage(originalDataUrl, { maxWidth: 512, maxHeight: 512, smoothing: false });
+                    setter(resizedDataUrl);
+                } catch (err) {
+                    console.error("Image processing failed:", err);
+                    setBaseError("处理上传素材失败。");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        // Reset file input to allow re-uploading the same file
+        if (event.target) {
+            event.target.value = "";
+        }
+    };
+
+
   const handleReferenceFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setReferenceImage(e.target?.result as string);
+      reader.onload = async (e) => {
+        const originalDataUrl = e.target?.result as string;
+        if (!originalDataUrl) return;
+        try {
+            const resizedDataUrl = await resizeImage(originalDataUrl, { maxWidth: 512, maxHeight: 512, smoothing: false });
+            setReferenceImage(resizedDataUrl);
+        } catch (err) {
+            console.error("Image processing failed:", err);
+            setBaseError("处理参考文件失败。");
+        }
       };
       reader.onerror = () => {
         setBaseError("读取参考文件失败。");
@@ -389,6 +510,36 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
   };
 
   const isOptimizeButtonDisabled = apiLock.isApiLocked || !uploadedImage || (!Object.values(optimizationChoices).some(v => v) && !styleInfluence && !referenceImage);
+  const isSynthesisButtonDisabled = apiLock.isApiLocked || !prompt || (!headImage && !poseImage && !clothesImage);
+
+    const ImageUploadSlot: React.FC<{
+        label: string;
+        image: string | null;
+        fileInputRef: React.RefObject<HTMLInputElement>;
+        onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+        onRemove: () => void;
+    }> = ({ label, image, fileInputRef, onFileChange, onRemove }) => (
+        <div>
+            <h3 className="text-lg text-yellow-400 mb-2 font-press-start">{label}</h3>
+            {image ? (
+                <div className="relative">
+                    <div className="w-full h-32 p-2 bg-gray-900 border-2 border-gray-600 rounded-md flex items-center justify-center">
+                        <img src={image} alt={`${label} preview`} className="max-w-full max-h-full object-contain rounded cursor-zoom-in" style={{ imageRendering: 'pixelated' }} onClick={() => setPreviewImage(image)} title="点击放大预览" />
+                    </div>
+                    <div className="absolute bottom-2 right-2 flex gap-2">
+                        <Button onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()} className="text-xs px-2 py-1 border-b-2 active:translate-y-px" disabled={apiLock.isApiLocked}>更换</Button>
+                        <Button onClick={onRemove} className="text-xs px-2 py-1 border-b-2 active:translate-y-px bg-red-600 border-red-800 hover:bg-red-500" disabled={apiLock.isApiLocked}>移除</Button>
+                    </div>
+                </div>
+            ) : (
+                <div className="w-full h-32 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer transition-colors" onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}>
+                    <span className="text-gray-500 text-center text-3xl">+</span>
+                </div>
+            )}
+            <input type="file" ref={fileInputRef} onChange={onFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked} />
+        </div>
+    );
+
 
   const renderDescribeStep = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -398,20 +549,27 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             <button
                 onClick={() => setMode('describe')}
                 disabled={apiLock.isApiLocked}
-                className={`w-1/2 font-press-start text-base py-3 rounded-md transition-colors ${mode === 'describe' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
+                className={`w-1/3 font-press-start text-sm py-3 rounded-md transition-colors ${mode === 'describe' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
             >
                 描述生成
             </button>
             <button
                 onClick={() => setMode('optimize')}
                 disabled={apiLock.isApiLocked}
-                className={`w-1/2 font-press-start text-base py-3 rounded-md transition-colors ${mode === 'optimize' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
+                className={`w-1/3 font-press-start text-sm py-3 rounded-md transition-colors ${mode === 'optimize' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
             >
                 优化图片
             </button>
+            <button
+                onClick={() => setMode('synthesis')}
+                disabled={apiLock.isApiLocked}
+                className={`w-1/3 font-press-start text-sm py-3 rounded-md transition-colors ${mode === 'synthesis' ? 'bg-purple-600 text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-700'}`}
+            >
+                素材合成
+            </button>
         </div>
         
-        {mode === 'describe' ? (
+        {mode === 'describe' && (
           <>
             <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">第一步：描述角色</h2>
             <p className="text-gray-300 mb-4 text-lg">请详细描述。AI 将根据你的提示生成基础角色设计。</p>
@@ -441,20 +599,40 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
               {isGeneratingBase ? '生成中...' : '生成角色'}
             </Button>
           </>
-        ) : (
+        )}
+        {mode === 'optimize' && (
           <>
             <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">第一步：上传角色图片</h2>
             <p className="text-gray-300 mb-4 text-lg">上传你的像素图角色，AI 将会优化它，同时保持原图尺寸。</p>
-            <div 
-                className="w-full h-40 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer transition-colors"
-                onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
-            >
-                {uploadedImage ? (
-                    <img src={uploadedImage} alt="上传角色预览" className="max-w-full max-h-full object-contain rounded cursor-zoom-in" style={{ imageRendering: 'pixelated' }} onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} title="点击放大预览" />
-                ) : (
-                    <span className="text-gray-500 text-center">点击或拖放上传</span>
-                )}
-            </div>
+            
+            {uploadedImage ? (
+              <div className="relative">
+                <div className="w-full h-40 p-3 bg-gray-900 border-2 border-gray-600 rounded-md flex items-center justify-center">
+                    <img 
+                      src={uploadedImage} 
+                      alt="上传角色预览" 
+                      className="max-w-full max-h-full object-contain rounded cursor-zoom-in" 
+                      style={{ imageRendering: 'pixelated' }} 
+                      onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} 
+                      title="点击放大预览" 
+                    />
+                </div>
+                <Button 
+                    onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
+                    className="absolute bottom-4 right-4 text-sm px-4 py-2 border-b-2 active:translate-y-px"
+                    disabled={apiLock.isApiLocked}
+                >
+                    更换图片
+                </Button>
+              </div>
+            ) : (
+              <div 
+                  className="w-full h-40 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer transition-colors"
+                  onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
+              >
+                  <span className="text-gray-500 text-center">点击或拖放上传</span>
+              </div>
+            )}
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked} />
             
             <h3 className="text-xl text-yellow-400 mt-4 mb-2 font-press-start">第二步：选择优化选项</h3>
@@ -501,6 +679,31 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             </Button>
           </>
         )}
+        {mode === 'synthesis' && (
+          <>
+            <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">第一步：组合素材</h2>
+            <p className="text-gray-300 mb-4 text-lg">分别上传代表头像、动作和衣服的图片，AI 将会把它们融合成一个新角色。</p>
+            <div className="space-y-4">
+                <ImageUploadSlot label="头像 (Head)" image={headImage} fileInputRef={headFileInputRef} onFileChange={(e) => handlePartFileChange(e, setHeadImage)} onRemove={() => setHeadImage(null)} />
+                <ImageUploadSlot label="动作 (Pose)" image={poseImage} fileInputRef={poseFileInputRef} onFileChange={(e) => handlePartFileChange(e, setPoseImage)} onRemove={() => setPoseImage(null)} />
+                <ImageUploadSlot label="衣服 (Clothes)" image={clothesImage} fileInputRef={clothesFileInputRef} onFileChange={(e) => handlePartFileChange(e, setClothesImage)} onRemove={() => setClothesImage(null)} />
+            </div>
+
+             <h3 className="text-xl text-yellow-400 mt-6 mb-2 font-press-start">第二步：最终描述</h3>
+             <p className="text-gray-300 mb-2 text-md">描述你希望最终合成的角色是什么样的。</p>
+             <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="例如：一位穿着华丽铠甲、手持长矛的女武神。"
+              className="w-full h-24 p-3 bg-gray-900 border-2 border-gray-600 rounded-md focus:outline-none focus:border-purple-500 transition-colors text-lg text-gray-200 resize-none"
+              disabled={apiLock.isApiLocked}
+            />
+
+            <Button onClick={handleSynthesizeCharacter} disabled={isSynthesisButtonDisabled} className="mt-4 w-full">
+                {isGeneratingBase ? '合成中...' : '合成角色'}
+            </Button>
+          </>
+        )}
       </div>
       <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border-2 border-gray-700 flex flex-col">
         <div className='flex-grow'>
@@ -509,7 +712,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
             isLoading={isGeneratingBase || isAdjusting}
             error={baseError}
             generatedImage={baseImage}
-            loadingText={isAdjusting ? "AI 正在调整你的英雄..." : (mode === 'optimize' ? "AI 正在优化你的英雄..." : "AI 正在塑造你的英雄...")}
+            loadingText={isAdjusting ? "AI 正在调整你的英雄..." : (mode === 'optimize' ? "AI 正在优化你的英雄..." : (mode === 'synthesis' ? "AI 正在融合你的英雄..." : "AI 正在塑造你的英雄..."))}
             placeholder={
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                   <div className="w-24 h-24 border-4 border-dashed border-gray-600 rounded-lg flex items-center justify-center mb-4">
@@ -570,7 +773,7 @@ const CharacterGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
                 </div>
                 <HistoryPanel history={history} onSelect={handleSelectHistoryItem} onDelete={handleDeleteAsset} disabled={apiLock.isApiLocked} onImageClick={setPreviewImage} />
             </div>
-             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Walking Sprite */}
                 <div className="bg-gray-800 p-4 rounded-lg shadow-inner border-2 border-gray-700 flex flex-col">

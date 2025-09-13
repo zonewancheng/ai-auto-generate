@@ -12,6 +12,13 @@ const getAiClient = (): GoogleGenAI => {
     return new GoogleGenAI({ apiKey });
 };
 
+// Helper to parse data URL
+const parseDataUrl = (dataUrl: string): { mimeType: string; data: string } | null => {
+    const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+    if (!match) return null;
+    return { mimeType: match[1], data: match[2] };
+};
+
 
 // --- Helper for Image Generation API Calls ---
 
@@ -85,8 +92,8 @@ The character should be centered in the frame.
 
 const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string): Promise<string> => {
     const ai = getAiClient();
-    const pureBase64 = base64ImageDataUrl.split(',')[1];
-    if (!pureBase64) {
+    const imageParts = parseDataUrl(base64ImageDataUrl);
+    if (!imageParts) {
         throw new Error("提供了无效的 base64 图像数据。");
     }
 
@@ -95,7 +102,7 @@ const generateAssetFromImage = async (base64ImageDataUrl: string, prompt: string
             model: 'gemini-2.5-flash-image-preview',
             contents: {
                 parts: [
-                    { inlineData: { data: pureBase64, mimeType: 'image/png' } },
+                    { inlineData: { data: imageParts.data, mimeType: imageParts.mimeType } },
                     { text: prompt },
                 ],
             },
@@ -181,19 +188,19 @@ User's request: "${userPrompt}".
 5.  **No Text:** The output must be a single PNG image with no text, watermarks, or artifacts.
 `;
 
-    const mainImageBase64 = base64ImageDataUrl.split(',')[1];
-    if (!mainImageBase64) {
+    const mainImageParts = parseDataUrl(base64ImageDataUrl);
+    if (!mainImageParts) {
         throw new Error("提供了无效的主图像数据。");
     }
 
     const parts: any[] = [
-        { inlineData: { data: mainImageBase64, mimeType: 'image/png' } },
+        { inlineData: { data: mainImageParts.data, mimeType: mainImageParts.mimeType } },
     ];
     
     if (referenceImageBase64DataUrl) {
-        const referenceImageBase64 = referenceImageBase64DataUrl.split(',')[1];
-        if (referenceImageBase64) {
-            parts.push({ inlineData: { data: referenceImageBase64, mimeType: 'image/png' } });
+        const referenceImageParts = parseDataUrl(referenceImageBase64DataUrl);
+        if (referenceImageParts) {
+            parts.push({ inlineData: { data: referenceImageParts.data, mimeType: referenceImageParts.mimeType } });
         }
     }
     
@@ -230,6 +237,88 @@ User's request: "${userPrompt}".
         handleApiError(error);
     }
 };
+
+export const synthesizeCharacterFromParts = async (
+    parts: { head?: string; pose?: string; clothes?: string },
+    userPrompt: string
+): Promise<string> => {
+    let masterPrompt = `
+You are an expert pixel art character designer. Your task is to create a new, single, coherent, full-body character by combining elements from the provided images, based on the user's description.
+User's description for the final character: "${userPrompt}".
+
+Follow these instructions for using the provided images, which follow this text prompt in order:
+`;
+    
+    const contentParts: any[] = [];
+    let imageCounter = 1;
+
+    if (parts.head) {
+        masterPrompt += `- Image ${imageCounter}: Use this image as the primary reference for the character's HEAD and FACE.\n`;
+        const parsed = parseDataUrl(parts.head);
+        if (parsed) contentParts.push({ inlineData: { data: parsed.data, mimeType: parsed.mimeType } });
+        imageCounter++;
+    }
+    if (parts.pose) {
+        masterPrompt += `- Image ${imageCounter}: Use this image as the primary reference for the character's body POSE and ACTION.\n`;
+        const parsed = parseDataUrl(parts.pose);
+        if (parsed) contentParts.push({ inlineData: { data: parsed.data, mimeType: parsed.mimeType } });
+        imageCounter++;
+    }
+    if (parts.clothes) {
+        masterPrompt += `- Image ${imageCounter}: Use this image as the primary reference for the character's CLOTHING and outfit style.\n`;
+        const parsed = parseDataUrl(parts.clothes);
+        if (parsed) contentParts.push({ inlineData: { data: parsed.data, mimeType: parsed.mimeType } });
+        imageCounter++;
+    }
+
+    masterPrompt += `
+If an image for a part is not provided, generate that part based on the user's text description and the other provided images.
+
+**CRITICAL INSTRUCTIONS:**
+1.  **Synthesize, Don't Copy:** Intelligently merge the features. The final character should look natural and cohesive, not like a messy collage.
+2.  **Style:** The final output must be in a vibrant 16-bit JRPG pixel art style.
+3.  **Transparency:** The background MUST be 100% transparent (alpha channel). Do NOT draw any pattern to simulate transparency.
+4.  **Output:** The output must be a single PNG image containing one character, with no text or watermarks.
+`;
+
+    if (contentParts.length === 0) {
+        throw new Error("至少需要提供一张参考图片。");
+    }
+
+    contentParts.unshift({ text: masterPrompt });
+
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: contentParts },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+        
+        const candidate = response.candidates?.[0];
+        const responseParts = candidate?.content?.parts || [];
+        const imagePart = responseParts.find(part => part.inlineData);
+        if (imagePart?.inlineData?.data) {
+            return `data:image/png;base64,${imagePart.inlineData.data}`;
+        } else {
+             if (candidate?.finishReason === 'SAFETY') {
+                const safetyMessage = candidate.safetyRatings
+                    ?.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW')
+                    .map(r => `类别 ${r.category} 被标记为 ${r.probability}`)
+                    .join(', ');
+                throw new Error(`请求因安全原因被拒绝。${safetyMessage ? `详情: ${safetyMessage}` : '请尝试调整提示或图片。'}`);
+            }
+            const textPart = responseParts.find(part => part.text);
+            const refusalMessage = textPart?.text || "API 未返回有效图片，请求可能已被拒绝。请尝试修改你的提示或图片。";
+            throw new Error(refusalMessage);
+        }
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
 
 export const generateWalkingSpriteFromImage = async (base64ImageDataUrl: string): Promise<string> => {
     const prompt = `
@@ -624,9 +713,9 @@ The art style must be a beautiful, high-detail digital painting aesthetic, simil
 
     const parts: any[] = [{ text: masterPrompt }];
     for (const asset of assets) {
-        const pureBase64 = asset.imageDataUrl.split(',')[1];
-        if (pureBase64) {
-            parts.push({ inlineData: { data: pureBase64, mimeType: 'image/png' } });
+        const imageParts = parseDataUrl(asset.imageDataUrl);
+        if (imageParts) {
+            parts.push({ inlineData: { data: imageParts.data, mimeType: imageParts.mimeType } });
         }
     }
 

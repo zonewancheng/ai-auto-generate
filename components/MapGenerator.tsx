@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { generateTileset, restyleMapImage, adjustGeneratedImage, removeImageBackground, addAsset, getAssetsByType, deleteAsset, AssetRecord } from '../services/geminiService';
 import Button from './Button';
@@ -5,6 +6,48 @@ import SpriteDisplay from './SpriteDisplay';
 import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
 import ImagePreviewModal from './ImagePreviewModal';
+
+interface ResizeOptions {
+    maxWidth: number;
+    maxHeight: number;
+    smoothing?: boolean;
+}
+
+const resizeImage = (dataUrl: string, options: ResizeOptions): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const { maxWidth, maxHeight, smoothing = false } = options;
+        const img = new Image();
+        img.onload = () => {
+            const { width, height } = img;
+
+            if (width <= maxWidth && height <= maxHeight) {
+                resolve(dataUrl); // No resize needed
+                return;
+            }
+
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            const newWidth = Math.round(width * ratio);
+            const newHeight = Math.round(height * ratio);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return reject(new Error("Could not get canvas context"));
+            }
+            
+            ctx.imageSmoothingEnabled = smoothing;
+            if (smoothing) {
+                 ctx.imageSmoothingQuality = 'high';
+            }
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+            resolve(canvas.toDataURL('image/png')); 
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = dataUrl;
+    });
+};
 
 type Mode = 'generate' | 'restyle';
 
@@ -203,9 +246,17 @@ const MapGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadedImage(e.target?.result as string);
-        setError(null);
+      reader.onload = async (e) => {
+        const originalDataUrl = e.target?.result as string;
+        if (!originalDataUrl) return;
+        try {
+            const resizedDataUrl = await resizeImage(originalDataUrl, { maxWidth: 1024, maxHeight: 1024, smoothing: true });
+            setUploadedImage(resizedDataUrl);
+            setError(null);
+        } catch (err) {
+            console.error("Image processing failed:", err);
+            setError("处理上传图片失败。");
+        }
       };
       reader.onerror = () => {
         setError("读取上传文件失败。");

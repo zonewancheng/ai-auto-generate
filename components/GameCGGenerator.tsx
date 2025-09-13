@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { generateGameConceptArt, adjustGeneratedImage, removeImageBackground, addAsset, getAssetsByType, deleteAsset, AssetRecord, generateConceptArtFromAssets } from '../services/geminiService';
 import Button from './Button';
@@ -6,6 +7,48 @@ import AdjustmentInput from './AdjustmentInput';
 import { GeneratorProps } from './GeneratorTabs';
 import LoadingSpinner from './LoadingSpinner';
 import ImagePreviewModal from './ImagePreviewModal';
+
+interface ResizeOptions {
+    maxWidth: number;
+    maxHeight: number;
+    smoothing?: boolean;
+}
+
+const resizeImage = (dataUrl: string, options: ResizeOptions): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const { maxWidth, maxHeight, smoothing = false } = options;
+        const img = new Image();
+        img.onload = () => {
+            const { width, height } = img;
+
+            if (width <= maxWidth && height <= maxHeight) {
+                resolve(dataUrl); // No resize needed
+                return;
+            }
+
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            const newWidth = Math.round(width * ratio);
+            const newHeight = Math.round(height * ratio);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return reject(new Error("Could not get canvas context"));
+            }
+            
+            ctx.imageSmoothingEnabled = smoothing;
+            if (smoothing) {
+                 ctx.imageSmoothingQuality = 'high';
+            }
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+            resolve(canvas.toDataURL('image/png')); 
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = dataUrl;
+    });
+};
 
 type Mode = 'generate' | 'fromAssets' | 'restyle';
 type AssetType = 'character' | 'monster' | 'pet' | 'item' | 'equipment';
@@ -307,7 +350,18 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => setUploadedImage(e.target?.result as string);
+      reader.onload = async (e) => {
+        const originalDataUrl = e.target?.result as string;
+        if (!originalDataUrl) return;
+        try {
+            const resizedDataUrl = await resizeImage(originalDataUrl, { maxWidth: 1024, maxHeight: 1024, smoothing: true });
+            setUploadedImage(resizedDataUrl);
+            setError(null);
+        } catch (err) {
+            console.error("Image processing failed:", err);
+            setError("处理上传图片失败。");
+        }
+      }
       reader.readAsDataURL(file);
     }
   };
@@ -318,17 +372,23 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
 
     Array.from(files).forEach(file => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const imageDataUrl = e.target?.result as string;
             if (imageDataUrl) {
-                const newAsset: AssetRecord = {
-                    id: Date.now() + Math.random(), // Temporary unique ID for React key
-                    type: 'local-asset',
-                    prompt: file.name,
-                    imageDataUrl,
-                    timestamp: Date.now(),
-                };
-                setSelectedAssets(prev => [...prev, newAsset]);
+                try {
+                    const resizedImageDataUrl = await resizeImage(imageDataUrl, { maxWidth: 512, maxHeight: 512, smoothing: false });
+                    const newAsset: AssetRecord = {
+                        id: Date.now() + Math.random(), // Temporary unique ID for React key
+                        type: 'local-asset',
+                        prompt: file.name,
+                        imageDataUrl: resizedImageDataUrl,
+                        timestamp: Date.now(),
+                    };
+                    setSelectedAssets(prev => [...prev, newAsset]);
+                } catch (err) {
+                    console.error("Image processing failed:", err);
+                    setError("处理上传的本地素材失败。");
+                }
             }
         };
         reader.readAsDataURL(file);
