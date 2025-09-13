@@ -398,9 +398,32 @@ const GameCGGenerator: React.FC<GeneratorProps> = ({ apiLock }) => {
      <>
         <h2 className="text-2xl text-yellow-400 mb-4 font-press-start">1. 上传图片</h2>
         <p className="text-gray-300 mb-4 text-lg">上传一张你想修改或重绘风格的图片。</p>
-        <div className="w-full h-48 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer" onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}>
-            {uploadedImage ? <img src={uploadedImage} alt="上传预览" className="max-w-full max-h-full object-contain rounded cursor-zoom-in" onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} title="点击放大预览" /> : <span className="text-gray-500 text-center">点击或拖放上传</span>}
-        </div>
+        
+        {uploadedImage ? (
+          <div className="relative">
+            <div className="w-full h-48 p-3 bg-gray-900 border-2 border-gray-600 rounded-md flex items-center justify-center">
+                <img 
+                  src={uploadedImage} 
+                  alt="上传预览" 
+                  className="max-w-full max-h-full object-contain rounded cursor-zoom-in" 
+                  onClick={(e) => { e.stopPropagation(); setPreviewImage(uploadedImage); }} 
+                  title="点击放大预览" 
+                />
+            </div>
+            <Button 
+                onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}
+                className="absolute bottom-4 right-4 text-sm px-4 py-2 border-b-2 active:translate-y-px"
+                disabled={apiLock.isApiLocked}
+            >
+                更换图片
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full h-48 p-3 bg-gray-900 border-2 border-dashed border-gray-600 rounded-md hover:border-purple-500 flex items-center justify-center cursor-pointer" onClick={() => !apiLock.isApiLocked && fileInputRef.current?.click()}>
+              <span className="text-gray-500 text-center">点击或拖放上传</span>
+          </div>
+        )}
+
         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" disabled={apiLock.isApiLocked} />
         <h2 className="text-2xl text-yellow-400 mt-6 mb-2 font-press-start">2. 描述修改</h2>
         <p className="text-gray-300 mb-4 text-lg">告诉AI你想如何修改这张图片。</p>
